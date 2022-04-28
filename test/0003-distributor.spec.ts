@@ -10,6 +10,7 @@ import initDuelistKing, { IDeployContext } from './helpers/deployer-duelist-king
 import initInfrastructure from './helpers/deployer-infrastructure';
 import { craftProof, dayToSec, getCurrentBlockTimestamp, printAllEvents } from './helpers/functions';
 
+
 let context: IDeployContext;
 let accounts: SignerWithAddress[];
 let boxes: string[] = [];
@@ -68,6 +69,7 @@ describe('DuelistKingDistributor', function () {
 
     // Create campaign for phase 1
     const timestamp = await getCurrentBlockTimestamp(hre);
+
     printAllEvents(
       await merchant.connect(accounts[9]).createNewCampaign({
         phaseId: 1,
@@ -205,6 +207,7 @@ describe('DuelistKingDistributor', function () {
   });
 
   it('Owner balance should have 0 box after unboxing all boxes', async () => {
+
     const {
       duelistKing: { item, card },
     } = context;

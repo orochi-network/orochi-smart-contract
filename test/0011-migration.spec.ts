@@ -104,6 +104,7 @@ describe('DuelistKingMigration', function () {
       duelistKing: { card, item },
       deployer,
     } = context;
+
     const migration = <DuelistKingMigration>(
       await deployer.contractDeploy('Duelist King/DuelistKingMigration', [], card.address, item.address)
     );
