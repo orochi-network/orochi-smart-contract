@@ -81,7 +81,8 @@ contract DuelistKingMerchant is RegistryUser {
     return currentCampaignId;
   }
 
-  // Create a new campaign
+
+  // Create a new supported stable coin
   function manageStablecoin(
     address tokenAddress,
     uint256 decimals,
@@ -99,7 +100,7 @@ contract DuelistKingMerchant is RegistryUser {
    * Public section
    ********************************************************/
 
-  // Annyone could buy NFT from smart contract
+  // Anyone could buy NFT from smart contract
   function buy(
     uint256 campaignId,
     uint256 numberOfBoxes,

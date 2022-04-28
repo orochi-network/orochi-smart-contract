@@ -1,29 +1,24 @@
-import hre from 'hardhat';
-import { randomBytes } from 'crypto';
-import { BigNumber, utils } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { zeroAddress } from './helpers/const';
-import initInfrastructure from './helpers/deployer-infrastructure';
-import initDuelistKing, { IDeployContext } from './helpers/deployer-duelist-king';
-import { craftProof, dayToSec, getUint128Random, printAllEvents } from './helpers/functions';
+import { expect } from 'chai';
+import { BigNumber, utils } from 'ethers';
+import hre from 'hardhat';
+import { DuelistKingToken, TestToken } from '../typechain';
 import BytesBuffer from './helpers/bytes';
 import Card from './helpers/card';
-import { expect } from 'chai';
-import { DuelistKingToken, NFT } from '../typechain';
+import { emptyBytes32, maxUint256, uint, zeroAddress } from './helpers/const';
+import initDuelistKing, { IDeployContext } from './helpers/deployer-duelist-king';
+import initInfrastructure from './helpers/deployer-infrastructure';
+import { craftProof, dayToSec, getCurrentBlockTimestamp, printAllEvents } from './helpers/functions';
+
 
 let context: IDeployContext;
 let accounts: SignerWithAddress[];
 let boxes: string[] = [];
 let cards: string[] = [];
 let token: DuelistKingToken;
-let uint = '1000000000000000000';
-const emptyBytes32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
-const maxUint256 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 describe('DuelistKingDistributor', function () {
-  this.timeout(5000000);
-
-  it('all initialized should be correct', async () => {
+  this.beforeAll('all initialized should be correct', async () => {
     accounts = await hre.ethers.getSigners();
     context = await initDuelistKing(
       await initInfrastructure(hre, {
@@ -41,6 +36,26 @@ describe('DuelistKingDistributor', function () {
     );
   });
 
+  it('Should be failed when creating a new campaign because invalid Sales Agent', async function () {
+    const {
+      duelistKing: { merchant },
+    } = context;
+    const timestamp = await getCurrentBlockTimestamp(hre);
+    const config = {
+      phaseId: 1,
+      totalSale: 20000,
+      deadline: Math.round(timestamp + dayToSec(30)),
+      // It is $5
+      basePrice: 5000000,
+    };
+    await expect(merchant.connect(accounts[1]).createNewCampaign(config)).to.be.revertedWith(
+      'UserRegistry: Only allow call from same domain',
+    );
+    await expect(merchant.connect(accounts[2]).createNewCampaign(config)).to.be.revertedWith(
+      'UserRegistry: Only allow call from same domain',
+    );
+  });
+
   it('Sales Agents must able to create new campaign', async () => {
     const {
       duelistKing: { merchant },
@@ -53,11 +68,13 @@ describe('DuelistKingDistributor', function () {
     await token.connect(accounts[0]).transfer(accounts[4].address, BigNumber.from(10000).mul(uint));
 
     // Create campaign for phase 1
+    const timestamp = await getCurrentBlockTimestamp(hre);
+
     printAllEvents(
       await merchant.connect(accounts[9]).createNewCampaign({
         phaseId: 1,
         totalSale: 20000,
-        deadline: Math.round(Date.now() / 1000) + dayToSec(30),
+        deadline: Math.round(timestamp + dayToSec(30)),
         // It is $5
         basePrice: 5000000,
       }),
@@ -68,7 +85,7 @@ describe('DuelistKingDistributor', function () {
       await merchant.connect(accounts[9]).createNewCampaign({
         phaseId: 20,
         totalSale: 20000,
-        deadline: Math.round(Date.now() / 1000) + dayToSec(30),
+        deadline: Math.round(timestamp + dayToSec(30)),
         // It is $5
         basePrice: 5000000,
       }),
@@ -77,7 +94,20 @@ describe('DuelistKingDistributor', function () {
     printAllEvents(await merchant.connect(accounts[9]).manageStablecoin(token.address, 18, true));
   });
 
-  it('Any one would able to buy box from DuelistKingMerchant', async () => {
+  it('Should NOT be able to buy box with trash token', async () => {
+    const {
+      duelistKing: { merchant },
+      deployer,
+    } = context;
+    const trashToken = <TestToken>await deployer.connect(accounts[0]).contractDeploy('test1/TestToken', []);
+    await trashToken.connect(accounts[0]).transfer(accounts[4].address, BigNumber.from(10000).mul(uint));
+    await trashToken.connect(accounts[4]).approve(merchant.address, maxUint256);
+    await expect(merchant.connect(accounts[4]).buy(1, 50, trashToken.address, emptyBytes32)).to.be.revertedWith(
+      'Merchant: Stablecoin was not supported',
+    );
+  });
+
+  it('Anyone would able to buy box from DuelistKingMerchant', async () => {
     const {
       duelistKing: { merchant, item },
     } = context;
@@ -129,11 +159,11 @@ describe('DuelistKingDistributor', function () {
     );
   });
 
-  it('Owner should be able to buy phase 20 boxes from DuelistKingDistributor', async () => {
+  it('Owner should be able to buy phase 20 (campaignId = 1) with 50 boxes from DuelistKingDistributor', async () => {
     const {
       duelistKing: { merchant, item },
     } = context;
-    const txResult = await (await merchant.connect(accounts[4]).buy(0, 50, token.address, emptyBytes32)).wait();
+    const txResult = await (await merchant.connect(accounts[4]).buy(1, 50, token.address, emptyBytes32)).wait();
 
     console.log(
       txResult.logs
@@ -176,32 +206,26 @@ describe('DuelistKingDistributor', function () {
     );
   });
 
-  it('OracleProxy should able to forward issueGenesisCard() DuelistKingDistributor', async () => {
+  it('Owner balance should have 0 box after unboxing all boxes', async () => {
+
     const {
       duelistKing: { item, card },
     } = context;
     expect((await item.balanceOf(accounts[4].address)).toNumber()).to.eq(0);
     expect((await item.totalSupply()).toNumber()).to.eq(0);
-    expect((await card.balanceOf(accounts[4].address)).toNumber()).to.gt(0);
+    expect((await card.balanceOf(accounts[4].address)).toNumber()).to.eq(500);
     expect((await card.totalSupply()).toNumber()).to.eq((await card.balanceOf(accounts[4].address)).toNumber());
   });
 
-  it('OracleProxy should able to forward issueGenesisCard() DuelistKingDistributor', async () => {
+  it('Duelistking Operator should able to call issueGenesisCard() in DuelistKingDistributor', async () => {
     const {
-      duelistKing: { distributor, oracle, card },
-      config: { duelistKing },
+      duelistKing: { distributor, card },
+      config: {
+        duelistKing: { operator },
+      },
     } = context;
     boxes = [];
-    const txResult = await (
-      await oracle
-        .connect(accounts[8])
-        .safeCall(
-          await craftProof(await hre.ethers.getSigner(duelistKing.oracleAddresses[0]), oracle),
-          distributor.address,
-          0,
-          distributor.interface.encodeFunctionData('issueGenesisCard', [accounts[4].address, 400]),
-        )
-    ).wait();
+    const txResult = await (await distributor.connect(operator).issueGenesisCard(accounts[4].address, 400)).wait();
 
     console.log(
       txResult.logs
@@ -224,36 +248,29 @@ describe('DuelistKingDistributor', function () {
     );
   });
 
-  it('OracleProxy should able to forward mintBoxes() phase 2 from real oracle to DuelistKingDistributor', async () => {
+  it('Duelistking Operator should able to call setRemainingBoxes() in DuelistKingDistributor', async () => {
     const {
-      duelistKing: { distributor, oracle, card },
-      config: { duelistKing },
+      duelistKing: { merchant, distributor, card },
+      config: {
+        duelistKing: { operator },
+      },
     } = context;
 
-    const txResult = await (
-      await oracle
-        .connect(accounts[8])
-        .safeCall(
-          await craftProof(await hre.ethers.getSigner(duelistKing.oracleAddresses[0]), oracle),
-          distributor.address,
-          0,
-          distributor.interface.encodeFunctionData('mintBoxes', [accounts[4].address, 100, 2]),
-        )
-    ).wait();
-
-    console.log(
-      txResult.logs
-        .filter((e) => e.topics[0] === utils.id('Transfer(address,address,uint256)'))
-        .map((e) => card.interface.decodeEventLog('Transfer', e.data, e.topics))
-        .map((e) => {
-          const { from, to, tokenId } = e;
-          const nftTokenId = BigNumber.from(tokenId).toHexString();
-          if (from === zeroAddress) boxes.push(nftTokenId);
-          return `Transfer(${[from, to, nftTokenId].join(', ')})`;
-        })
-        .join('\n'),
-      `\n${txResult.gasUsed.toString()} Gas`,
+    const timestamp = await getCurrentBlockTimestamp(hre);
+    const setAmount = 1000;
+    const phaseId = 2;
+    const config = {
+      phaseId,
+      totalSale: 20000,
+      deadline: Math.round(timestamp + dayToSec(30)),
+      basePrice: 5000000,
+    };
+    await expect(merchant.connect(accounts[1]).createNewCampaign(config)).to.be.revertedWith(
+      'UserRegistry: Only allow call from same domain',
     );
+    await (await distributor.connect(operator).setRemainingBoxes(phaseId, setAmount)).wait();
+    const afterSetValue = await (await distributor.connect(operator).getRemainingBox(phaseId)).toNumber();
+    expect(afterSetValue).to.eq(setAmount);
   });
 
   it('OracleProxy should able to forward upgradeCard() to DuelistKingDistributor', async () => {
