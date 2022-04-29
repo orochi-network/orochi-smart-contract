@@ -6,13 +6,14 @@ import '@openzeppelin/contracts/utils/Address.sol';
 import '../libraries/Verifier.sol';
 import '../libraries/Bytes.sol';
 import '../libraries/Permissioned.sol';
+import '../libraries/MultiSignatureStorage.sol';
 
 /**
- * Orochi Multi Signature Wallet
+ * Orochi Multi Signature Wallet V1
  * Name: N/A
  * Domain: N/A
  */
-contract MultiSignature is Permissioned {
+contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   // Address lib providing safe {call} and {delegatecall}
   using Address for address;
 
@@ -22,42 +23,15 @@ contract MultiSignature is Permissioned {
   // Verifiy digital signature
   using Verifier for bytes;
 
-  // Structure of proposal
-  struct Proposal {
-    int256 vote;
-    uint256 expired;
-    bool executed;
-    uint256 value;
-    address target;
-    bytes data;
-  }
-
   // Permission constants
-  uint256 internal constant PERMISSION_CREATE = 1;
-  uint256 internal constant PERMISSION_SIGN = 2;
-  uint256 internal constant PERMISSION_VOTE = 4;
-  uint256 internal constant PERMISSION_OBSERVER = 4294967296;
-
-  // Proposal index, begin from 0
-  uint256 private _totalProposal;
-
-  // Proposal storage
-  mapping(uint256 => Proposal) private _proposalStorage;
-
-  // Voted storage
-  mapping(uint256 => mapping(address => bool)) private _votedStorage;
-
-  // Quick transaction nonce
-  uint256 private _nonce = 0;
-
-  // Total number of signer
-  uint256 private _totalSigner = 0;
-
-  // Threshold for a proposal to be passed, it' usual 50%
-  int256 private _threshold;
-
-  // Threshold for all participants to be drag a long, it's usual 70%
-  int256 private _thresholdDrag;
+  // Create a new proposal and do qick transfer
+  uint256 private constant PERMISSION_CREATE = 1;
+  // Allowed to sign quick transfer message and vote a proposal
+  uint256 private constant PERMISSION_VOTE = 2;
+  // Permission to execute the proposal
+  uint256 private constant PERMISSION_EXECUTE = 4;
+  // View permission only
+  uint256 private constant PERMISSION_OBSERVER = 4294967296;
 
   // Create a new proposal
   event NewProposal(address creator, uint256 indexed proposalId, uint256 indexed expired);
@@ -72,11 +46,14 @@ contract MultiSignature is Permissioned {
   event NegativeVote(uint256 indexed proposalId, address indexed owner);
 
   // Receive payment
-  event Transaction(address indexed from, address indexed to, uint256 indexed value);
+  event InternalTransaction(address indexed from, address indexed to, uint256 indexed value);
+
+  // Qick transfer event
+  event QuickTranfser(address indexed target, uint256 indexed value, bytes indexed data);
 
   // This contract able to receive fund
   receive() external payable {
-    if (msg.value > 0) emit Transaction(msg.sender, address(this), msg.value);
+    if (msg.value > 0) emit InternalTransaction(msg.sender, address(this), msg.value);
   }
 
   // Init method which can be called once
@@ -86,15 +63,17 @@ contract MultiSignature is Permissioned {
     int256 threshold_,
     int256 thresholdDrag_
   ) external {
+    require(_init(users_, roles_) > 0, 'S: Unable to init contract');
+    uint256 totalSinger = 0;
     for (uint256 i = 0; i < users_.length; i += 1) {
-      if (roles_[i] & PERMISSION_SIGN > 0) {
-        _totalSigner += 1;
+      if (roles_[i] & PERMISSION_VOTE > 0) {
+        totalSinger += 1;
       }
     }
     // These values can be set once
     _threshold = threshold_;
     _thresholdDrag = thresholdDrag_;
-    require(_init(users_, roles_) > 0, 'S: Unable to init contract');
+    _totalSigner = totalSinger;
   }
 
   /*******************************************************
@@ -102,15 +81,16 @@ contract MultiSignature is Permissioned {
    ********************************************************/
   // Transfer role to new user
   function transferRole(address newUser) external onlyUser {
-    // New user will be activated after 30 days
+    // New user will be activated after 7 days
     // We prevent them to vote and transfer permission to the other
-    _transferRole(newUser, 30 days);
+    // and vote again
+    _transferRole(newUser, 7 days);
   }
 
   /*******************************************************
    * Creator section
    ********************************************************/
-  // Transfer with signed off-chain proofs instead of on-chain voting
+  // Transfer with signed proofs instead of on-chain voting
   function quickTransfer(bytes[] memory signatures, bytes memory txData)
     external
     onlyAllow(PERMISSION_CREATE)
@@ -121,12 +101,12 @@ contract MultiSignature is Permissioned {
     for (uint256 i = 0; i < signatures.length; i += 1) {
       address signer = txData.verifySerialized(signatures[i]);
       // Each signer only able to be counted once
-      if (isRole(signer, PERMISSION_SIGN) && _isNotInclude(signedAddresses, signer)) {
+      if (isPermission(signer, PERMISSION_VOTE) && _isNotInclude(signedAddresses, signer)) {
         signedAddresses[totalSigned] = signer;
         totalSigned += 1;
       }
     }
-    require(_calculatePercent(int256(totalSigned)) >= _thresholdDrag, 'S: Total signed was not pass drag threshold');
+    require(_calculatePercent(int256(totalSigned)) >= _thresholdDrag, 'S: Drag threshold was not passed');
     uint256 packagedNonce = txData.readUint256(0);
     address target = txData.readAddress(32);
     uint256 value = txData.readUint256(52);
@@ -134,13 +114,14 @@ contract MultiSignature is Permissioned {
     uint256 nonce = packagedNonce & 0xffffffffffffffffffffffffffffffff;
     uint256 votingTime = packagedNonce >> 128;
     require(nonce - _nonce == 1, 'S: Invalid nonce value');
-    require(votingTime > block.timestamp && votingTime < block.timestamp + 3 days, 'S: Timeout');
+    require(votingTime > block.timestamp && votingTime < block.timestamp + 3 days, 'S: Proof expired');
     _nonce = nonce;
     if (target.isContract()) {
       target.functionCallWithValue(data, value);
     } else {
       payable(address(target)).transfer(value);
     }
+    emit QuickTranfser(target, value, data);
     return true;
   }
 
@@ -181,18 +162,18 @@ contract MultiSignature is Permissioned {
   }
 
   /*******************************************************
-   * Sign permission section
+   * Execute permission section
    ********************************************************/
   // Execute a voted proposal
-  function execute(uint256 proposalId) external onlyAllow(PERMISSION_VOTE) returns (bool) {
+  function execute(uint256 proposalId) external onlyAllow(PERMISSION_EXECUTE) returns (bool) {
     Proposal memory currentProposal = _proposalStorage[proposalId];
+    require(currentProposal.executed == false, 'S: Proposal was executed');
     int256 voting = _calculatePercent(currentProposal.vote);
     // If positiveVoted < 70%, It need to pass 50% and expired
     if (voting < int256(_thresholdDrag)) {
       require(block.timestamp > _proposalStorage[proposalId].expired, "S: Voting period wasn't over");
       require(voting >= 50, 'S: Vote was not pass 50%');
     }
-    require(currentProposal.executed == false, 'S: Proposal was executed');
 
     if (currentProposal.target.isContract()) {
       currentProposal.target.functionCallWithValue(currentProposal.data, currentProposal.value);
@@ -210,8 +191,8 @@ contract MultiSignature is Permissioned {
    ********************************************************/
   // Vote a proposal
   function _voteProposal(uint256 proposalId, bool positive) private returns (bool) {
-    require(block.timestamp < _proposalStorage[proposalId].expired, 'MultiSig: Voting period was over');
-    require(_votedStorage[proposalId][msg.sender] == false, 'MultiSig: You had voted this proposal');
+    require(block.timestamp < _proposalStorage[proposalId].expired, 'S: Voting period was over');
+    require(_votedStorage[proposalId][msg.sender] == false, 'S: You had voted this proposal');
     if (positive) {
       _proposalStorage[proposalId].vote += 1;
       emit PositiveVote(proposalId, msg.sender);
@@ -249,7 +230,7 @@ contract MultiSignature is Permissioned {
     uint256 value,
     bytes memory data
   ) external view returns (bytes memory) {
-    return abi.encodePacked(uint128(block.timestamp), uint128(_nonce + 1), target, value, data);
+    return abi.encodePacked(uint128(block.timestamp + 1 hours), uint128(_nonce + 1), target, value, data);
   }
 
   function getTotalProposal() external view returns (uint256) {

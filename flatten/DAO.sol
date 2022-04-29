@@ -1,7 +1,7 @@
 // Dependency file: @openzeppelin/contracts/utils/Context.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -28,7 +28,7 @@ abstract contract Context {
 
 // Dependency file: @openzeppelin/contracts/access/Ownable.sol
 
-// OpenZeppelin Contracts v4.4.0 (access/Ownable.sol)
+// OpenZeppelin Contracts v4.4.1 (access/Ownable.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -107,7 +107,7 @@ abstract contract Ownable is Context {
 
 // Dependency file: @openzeppelin/contracts/token/ERC20/IERC20.sol
 
-// OpenZeppelin Contracts v4.4.0 (token/ERC20/IERC20.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC20/IERC20.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -126,13 +126,13 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 
     /**
-     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     * @dev Moves `amount` tokens from the caller's account to `to`.
      *
      * Returns a boolean value indicating whether the operation succeeded.
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be
@@ -160,7 +160,7 @@ interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
 
     /**
-     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * @dev Moves `amount` tokens from `from` to `to` using the
      * allowance mechanism. `amount` is then deducted from the caller's
      * allowance.
      *
@@ -169,8 +169,8 @@ interface IERC20 {
      * Emits a {Transfer} event.
      */
     function transferFrom(
-        address sender,
-        address recipient,
+        address from,
+        address to,
         uint256 amount
     ) external returns (bool);
 
@@ -192,9 +192,9 @@ interface IERC20 {
 
 // Dependency file: @openzeppelin/contracts/utils/Address.sol
 
-// OpenZeppelin Contracts v4.4.0 (utils/Address.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (utils/Address.sol)
 
-// pragma solidity ^0.8.0;
+// pragma solidity ^0.8.1;
 
 /**
  * @dev Collection of functions related to the address type
@@ -216,17 +216,22 @@ library Address {
      *  - an address where a contract will be created
      *  - an address where a contract lived, but was destroyed
      * ====
+     *
+     * [IMPORTANT]
+     * ====
+     * You shouldn't rely on `isContract` to protect against flash loan attacks!
+     *
+     * Preventing calls from contracts is highly discouraged. It breaks composability, breaks support for smart wallets
+     * like Gnosis Safe, and does not provide security since it can be circumvented by calling from a contract
+     * constructor.
+     * ====
      */
     function isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
+        // This method relies on extcodesize/address.code.length, which returns 0
+        // for contracts in construction, since the code is only stored at the end
+        // of the constructor execution.
 
-        uint256 size;
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
+        return account.code.length > 0;
     }
 
     /**

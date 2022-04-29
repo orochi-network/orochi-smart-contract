@@ -34,7 +34,7 @@ const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
     fantom: {
-      url: env.DUELIST_KING_RPC,
+      url: env.DUELIST_KING_DEPLOY_MNEMONIC,
       chainId: 250,
       accounts: {
         mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,

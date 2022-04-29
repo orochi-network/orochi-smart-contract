@@ -9,14 +9,14 @@
   "private": false,
   "scripts": {
     "build": "hardhat compile",
+    "release": "yarn build && yarn flatten",
     "coverage": "hardhat compile && hardhat coverage",
     "node": "hardhat node",
     "test": "hardhat test",
     "deploy:local": "hardhat --network local deploy",
     "deploy:testnet": "hardhat --network testnet deploy",
     "deploy:fantom": "hardhat --network fantom deploy",
-    "flatten": "waffle flatten && node ./clean.js",
-    "fork-node": "hardhat --config hardhat-ethfork.config.ts node"
+    "flatten": "waffle flatten && node ./clean.js"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-waffle": "^2.0.1",

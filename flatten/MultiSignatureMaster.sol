@@ -224,6 +224,93 @@ library Address {
 }
 
 
+// Dependency file: @openzeppelin/contracts/proxy/Clones.sol
+
+// OpenZeppelin Contracts v4.4.1 (proxy/Clones.sol)
+
+// pragma solidity ^0.8.0;
+
+/**
+ * @dev https://eips.ethereum.org/EIPS/eip-1167[EIP 1167] is a standard for
+ * deploying minimal proxy contracts, also known as "clones".
+ *
+ * > To simply and cheaply clone contract functionality in an immutable way, this standard specifies
+ * > a minimal bytecode implementation that delegates all calls to a known, fixed address.
+ *
+ * The library includes functions to deploy a proxy using either `create` (traditional deployment) or `create2`
+ * (salted deterministic deployment). It also includes functions to predict the addresses of clones deployed using the
+ * deterministic method.
+ *
+ * _Available since v3.4._
+ */
+library Clones {
+    /**
+     * @dev Deploys and returns the address of a clone that mimics the behaviour of `implementation`.
+     *
+     * This function uses the create opcode, which should never revert.
+     */
+    function clone(address implementation) internal returns (address instance) {
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
+            mstore(add(ptr, 0x14), shl(0x60, implementation))
+            mstore(add(ptr, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
+            instance := create(0, ptr, 0x37)
+        }
+        require(instance != address(0), "ERC1167: create failed");
+    }
+
+    /**
+     * @dev Deploys and returns the address of a clone that mimics the behaviour of `implementation`.
+     *
+     * This function uses the create2 opcode and a `salt` to deterministically deploy
+     * the clone. Using the same `implementation` and `salt` multiple time will revert, since
+     * the clones cannot be deployed twice at the same address.
+     */
+    function cloneDeterministic(address implementation, bytes32 salt) internal returns (address instance) {
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
+            mstore(add(ptr, 0x14), shl(0x60, implementation))
+            mstore(add(ptr, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
+            instance := create2(0, ptr, 0x37, salt)
+        }
+        require(instance != address(0), "ERC1167: create2 failed");
+    }
+
+    /**
+     * @dev Computes the address of a clone deployed using {Clones-cloneDeterministic}.
+     */
+    function predictDeterministicAddress(
+        address implementation,
+        bytes32 salt,
+        address deployer
+    ) internal pure returns (address predicted) {
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
+            mstore(add(ptr, 0x14), shl(0x60, implementation))
+            mstore(add(ptr, 0x28), 0x5af43d82803e903d91602b57fd5bf3ff00000000000000000000000000000000)
+            mstore(add(ptr, 0x38), shl(0x60, deployer))
+            mstore(add(ptr, 0x4c), salt)
+            mstore(add(ptr, 0x6c), keccak256(ptr, 0x37))
+            predicted := keccak256(add(ptr, 0x37), 0x55)
+        }
+    }
+
+    /**
+     * @dev Computes the address of a clone deployed using {Clones-cloneDeterministic}.
+     */
+    function predictDeterministicAddress(address implementation, bytes32 salt)
+        internal
+        view
+        returns (address predicted)
+    {
+        return predictDeterministicAddress(implementation, salt, address(this));
+    }
+}
+
+
 // Dependency file: contracts/libraries/Verifier.sol
 
 // pragma solidity >=0.8.4 <0.9.0;
@@ -365,60 +452,37 @@ library Bytes {
 }
 
 
-// Dependency file: contracts/interfaces/IRegistry.sol
+// Dependency file: contracts/libraries/Permissioned.sol
 
 // pragma solidity >=0.8.4 <0.9.0;
 
-interface IRegistry {
-  event Registered(bytes32 domain, bytes32 indexed name, address indexed addr);
+contract Permissioned {
+  // Permission constants
+  uint256 internal constant PERMISSION_NONE = 0;
 
-  function isExistRecord(bytes32 domain, bytes32 name) external view returns (bool);
+  // Multi user data
+  mapping(address => uint256) private _userRole;
 
-  function set(
-    bytes32 domain,
-    bytes32 name,
-    address addr
-  ) external returns (bool);
+  // Active time of user
+  mapping(address => uint256) private _activeTime;
 
-  function batchSet(
-    bytes32[] calldata domains,
-    bytes32[] calldata names,
-    address[] calldata addrs
-  ) external returns (bool);
+  // Total number of users
+  uint256 private _totalUser;
 
-  function getAddress(bytes32 domain, bytes32 name) external view returns (address);
+  // Transfer role to new user event
+  event TransferRole(address indexed preUser, address indexed newUser, uint256 indexed role);
 
-  function getDomainAndName(address addr) external view returns (bytes32, bytes32);
-}
-
-
-// Dependency file: contracts/libraries/RegistryUser.sol
-
-// pragma solidity >=0.8.4 <0.9.0;
-
-// import 'contracts/interfaces/IRegistry.sol';
-
-abstract contract RegistryUser {
-  // Registry contract
-  IRegistry internal _registry;
-
-  // Active domain
-  bytes32 internal _domain;
-
-  // Initialized
-  bool private _initialized = false;
-
-  // Allow same domain calls
-  modifier onlyAllowSameDomain(bytes32 name) {
-    require(msg.sender == _registry.getAddress(_domain, name), 'UserRegistry: Only allow call from same domain');
+  // Only allow users who has given role trigger smart contract
+  modifier onlyAllow(uint256 permission) {
+    require(_userRole[msg.sender] & permission > 0 && block.timestamp > _activeTime[msg.sender], 'P: Access denied');
     _;
   }
 
-  // Allow cross domain call
-  modifier onlyAllowCrossDomain(bytes32 fromDomain, bytes32 name) {
+  // Only allow listed users to trigger smart contract
+  modifier onlyUser() {
     require(
-      msg.sender == _registry.getAddress(fromDomain, name),
-      'UserRegistry: Only allow call from allowed cross domain'
+      _userRole[msg.sender] > PERMISSION_NONE && block.timestamp > _activeTime[msg.sender],
+      'P: We are only allow user to trigger'
     );
     _;
   }
@@ -427,141 +491,207 @@ abstract contract RegistryUser {
    * Internal section
    ********************************************************/
 
-  // Constructing with registry address and its active domain
-  function _registryUserInit(address registry_, bytes32 domain_) internal returns (bool) {
-    require(!_initialized, "UserRegistry: It's only able to initialize once");
-    _registry = IRegistry(registry_);
-    _domain = domain_;
-    _initialized = true;
-    return true;
+  // Init method which can be called once
+  function _init(address[] memory users_, uint256[] memory roles_) internal returns (uint256) {
+    require(_totalUser == 0, 'P: Only able to be called once');
+    require(users_.length == roles_.length, 'P: Length mismatch');
+    for (uint256 i = 0; i < users_.length; i += 1) {
+      _userRole[users_[i]] = roles_[i];
+      emit TransferRole(address(0), users_[i], roles_[i]);
+    }
+    _totalUser = users_.length;
+    return users_.length;
   }
 
-  // Get address in the same domain
-  function _getAddressSameDomain(bytes32 name) internal view returns (address) {
-    return _registry.getAddress(_domain, name);
+  // Transfer role to new user
+  function _transferRole(address newUser, uint256 lockDuration) internal returns (uint256) {
+    require(newUser != address(0), 'P: Can not transfer user role');
+    uint256 role = _userRole[msg.sender];
+    // Remove user
+    _userRole[msg.sender] = PERMISSION_NONE;
+    // Assign role for new user
+    _userRole[newUser] = role;
+    _activeTime[newUser] = block.timestamp + lockDuration;
+    emit TransferRole(msg.sender, newUser, role);
+    return _userRole[newUser];
   }
 
   /*******************************************************
    * View section
    ********************************************************/
 
-  // Return active domain
-  function getDomain() external view returns (bytes32) {
-    return _domain;
+  // Read role of an user
+  function getRole(address checkAddress) public view returns (uint256) {
+    return _userRole[checkAddress];
   }
 
-  // Return registry address
-  function getRegistry() external view returns (address) {
-    return address(_registry);
+  // Get active time of user
+  function getActiveTime(address checkAddress) public view returns (uint256) {
+    return _activeTime[checkAddress];
+  }
+
+  // Is an address a user
+  function isUser(address checkAddress) public view returns (bool) {
+    return _userRole[checkAddress] > PERMISSION_NONE && block.timestamp > _activeTime[checkAddress];
+  }
+
+  // Check a permission is granted to user
+  function isPermission(address checkAddress, uint256 checkPermission) public view returns (bool) {
+    return isUser(checkAddress) && ((_userRole[checkAddress] & checkPermission) > 0);
+  }
+
+  // Get total number of user
+  function getTotalUser() public view returns (uint256) {
+    return _totalUser;
   }
 }
 
 
-// Root file: contracts/libraries/OracleProxy.sol
+// Dependency file: contracts/interfaces/IMultiSignature.sol
+
+// pragma solidity >=0.8.4 <0.9.0;
+
+interface IMultiSignature {
+  function init(
+    address[] memory users_,
+    uint256[] memory roles_,
+    int256 threshold_,
+    int256 thresholdDrag_
+  ) external returns (bool);
+}
+
+
+// Root file: contracts/operators/MultiSignatureMaster.sol
 
 pragma solidity >=0.8.4 <0.9.0;
 
 // import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/utils/Address.sol';
+// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/proxy/Clones.sol';
 // import 'contracts/libraries/Verifier.sol';
 // import 'contracts/libraries/Bytes.sol';
-// import 'contracts/libraries/RegistryUser.sol';
+// import 'contracts/libraries/Permissioned.sol';
+// import 'contracts/interfaces/IMultiSignature.sol';
 
 /**
- * Oracle Proxy
- * Name: Oracle
- * Domain: DKDAO, *
+ * Orochi Multi Signature Master
+ * Name: N/A
+ * Domain: N/A
  */
-contract OracleProxy is RegistryUser {
-  // Verify signature
-  using Bytes for bytes;
+contract MultiSignatureMaster is Permissioned {
+  // Allow master to clone other multi signature contract
+  using Clones for address;
 
-  // Verify signature
-  using Verifier for bytes;
+  // Permissionw
+  uint256 internal constant PERMISSION_TRANSFER = 1;
+  uint256 internal constant PERMISSION_OPERATOR = 2;
 
-  // Use address lib for address
-  using Address for address;
+  // Wallet implementation
+  address private _implementation;
 
-  // Controller list
-  mapping(address => bool) private _controllers;
+  // Price in native token
+  uint256 private _walletFee;
 
-  // List controller
-  event ListAddress(address indexed addr);
+  // Create new wallet
+  event CreateNewWallet(address indexed creator, uint256 indexed salt, int256 indexed threshold, int256 thresholdDrag);
 
-  // Delist controller
-  event DelistAddress(address indexed addr);
+  // Upgrade implementation
+  event UpgradeImplementation(address indexed oldImplementation, address indexed upgradeImplementation);
 
-  constructor(address registry_, bytes32 domain_) {
-    // Set the operator
-    _registryUserInit(registry_, domain_);
+  // Request small fee to create new wallet, we prevent people spaming wallet
+  modifier requireFee() {
+    require(msg.value >= _walletFee, 'M: It need native token to trigger this method');
+    _;
   }
 
-  // Only allow listed oracle to trigger oracle proxy
-  modifier onlyListedController(bytes memory proof) {
-    require(proof.length == 97, 'OracleProxy: Wrong size of the proof, it must be 97 bytes');
-    bytes memory signature = proof.readBytes(0, 65);
-    bytes memory message = proof.readBytes(65, 32);
-    address sender = message.verifySerialized(signature);
-    uint256 timeAndNonce = message.readUint256(0);
-    uint256 expired = timeAndNonce >> 128;
-    require(expired > block.timestamp, 'OracleProxy: This proof was expired');
-    require(_controllers[sender], 'OracleProxy: Controller was not in the list');
-    _;
+  // This contract able to receive fund
+  receive() external payable {}
+
+  // Pass parameters to parent contract
+  constructor(
+    address[] memory users_,
+    uint256[] memory roles_,
+    address implementation_,
+    uint256 fee_
+  ) {
+    _implementation = implementation_;
+    _walletFee = fee_;
+    _init(users_, roles_);
+    emit UpgradeImplementation(address(0), implementation_);
+  }
+
+  /*******************************************************
+   * User section
+   ********************************************************/
+  // Transfer existing role to a new user
+  function transferRole(address newUser) external onlyUser {
+    // New user will be activated after 1 days 1 hours
+    _transferRole(newUser, 1 days + 1 hours);
+  }
+
+  /*******************************************************
+   * Transfer section
+   ********************************************************/
+  // Withdraw all of the balance to the fee collector
+  function withdraw(address payable receiver) external onlyAllow(PERMISSION_TRANSFER) {
+    receiver.transfer(address(this).balance);
   }
 
   /*******************************************************
    * Operator section
    ********************************************************/
-
-  // Add real Oracle to controller list
-  function addController(address controllerAddr) external onlyAllowSameDomain('Operator') returns (bool) {
-    _controllers[controllerAddr] = true;
-    emit ListAddress(controllerAddr);
-    return true;
-  }
-
-  // Remove real Oracle from controller list
-  function removeController(address controllerAddr) external onlyAllowSameDomain('Operator') returns (bool) {
-    _controllers[controllerAddr] = false;
-    emit DelistAddress(controllerAddr);
-    return true;
+  // Upgrade new implementation
+  function upgradeImplementation(address newImplementation) external onlyAllow(PERMISSION_OPERATOR) {
+    emit UpgradeImplementation(_implementation, newImplementation);
+    _implementation = newImplementation;
   }
 
   /*******************************************************
    * Public section
    ********************************************************/
-
-  // Safe call to a target address with given payload
-  function safeCall(
-    bytes memory proof,
-    address target,
-    uint256 value,
-    bytes memory data
-  ) external onlyListedController(proof) returns (bool) {
-    target.functionCallWithValue(data, value);
-    return true;
+  // Create new multisig wallet
+  function createWallet(
+    uint96 salt,
+    address[] memory users_,
+    uint256[] memory roles_,
+    int256 threshold_,
+    int256 thresholdDrag_
+  ) external payable requireFee returns (address) {
+    address newWallet = _implementation.cloneDeterministic(_getUniqueSalt(msg.sender, salt));
+    emit CreateNewWallet(msg.sender, salt, threshold_, thresholdDrag_);
+    require(
+      IMultiSignature(newWallet).init(users_, roles_, threshold_, thresholdDrag_),
+      'M: Can not init multi-sig wallet'
+    );
+    return newWallet;
   }
 
-  // Delegatecall to a target address with given payload
-  function safeDelegateCall(
-    bytes memory proof,
-    address target,
-    bytes calldata data
-  ) external onlyListedController(proof) returns (bool) {
-    target.functionDelegateCall(data);
-    return true;
+  /*******************************************************
+   * Private section
+   ********************************************************/
+  function _getUniqueSalt(address creatorAddress, uint96 salt) private pure returns (bytes32) {
+    bytes32 packedSalt;
+    assembly {
+      packedSalt := xor(shl(96, salt), creatorAddress)
+    }
+    return packedSalt;
   }
 
   /*******************************************************
    * View section
    ********************************************************/
 
-  // Get valid nonce of next transaction
-  function getValidTimeNonce(uint256 timeout, uint256 randomNonce) external view returns (uint256) {
-    return ((block.timestamp + timeout) << 128) | randomNonce;
+  // Get fee to generate a new wallet
+  function getFee() external view returns (uint256) {
+    return _walletFee;
   }
 
-  // Check a address is controller
-  function isController(address inputAddress) external view returns (bool) {
-    return _controllers[inputAddress];
+  // Get implementation address
+  function getImplementation() external view returns (address) {
+    return _implementation;
+  }
+
+  // Calculate deterministic address
+  function predictWalletAddress(address creatorAddress, uint96 salt) external view returns (address) {
+    return _implementation.predictDeterministicAddress(_getUniqueSalt(creatorAddress, salt));
   }
 }

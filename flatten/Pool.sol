@@ -1,9 +1,9 @@
 // Dependency file: @openzeppelin/contracts/utils/Address.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0 (utils/Address.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (utils/Address.sol)
 
-// pragma solidity ^0.8.0;
+// pragma solidity ^0.8.1;
 
 /**
  * @dev Collection of functions related to the address type
@@ -25,17 +25,22 @@ library Address {
      *  - an address where a contract will be created
      *  - an address where a contract lived, but was destroyed
      * ====
+     *
+     * [IMPORTANT]
+     * ====
+     * You shouldn't rely on `isContract` to protect against flash loan attacks!
+     *
+     * Preventing calls from contracts is highly discouraged. It breaks composability, breaks support for smart wallets
+     * like Gnosis Safe, and does not provide security since it can be circumvented by calling from a contract
+     * constructor.
+     * ====
      */
     function isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
+        // This method relies on extcodesize/address.code.length, which returns 0
+        // for contracts in construction, since the code is only stored at the end
+        // of the constructor execution.
 
-        uint256 size;
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
+        return account.code.length > 0;
     }
 
     /**
@@ -221,7 +226,7 @@ library Address {
 
 // Dependency file: @openzeppelin/contracts/utils/introspection/IERC165.sol
 
-// OpenZeppelin Contracts v4.4.0 (utils/introspection/IERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -249,7 +254,7 @@ interface IERC165 {
 
 // Dependency file: @openzeppelin/contracts/token/ERC721/IERC721.sol
 
-// OpenZeppelin Contracts v4.4.0 (token/ERC721/IERC721.sol)
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/IERC721.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -395,7 +400,7 @@ interface IERC721 is IERC165 {
 
 // Dependency file: @openzeppelin/contracts/token/ERC721/IERC721Receiver.sol
 
-// OpenZeppelin Contracts v4.4.0 (token/ERC721/IERC721Receiver.sol)
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/IERC721Receiver.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -425,7 +430,7 @@ interface IERC721Receiver {
 
 // Dependency file: @openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol
 
-// OpenZeppelin Contracts v4.4.0 (token/ERC721/extensions/IERC721Metadata.sol)
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/IERC721Metadata.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -455,7 +460,7 @@ interface IERC721Metadata is IERC721 {
 
 // Dependency file: @openzeppelin/contracts/utils/Context.sol
 
-// OpenZeppelin Contracts v4.4.0 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -482,7 +487,7 @@ abstract contract Context {
 
 // Dependency file: @openzeppelin/contracts/utils/Strings.sol
 
-// OpenZeppelin Contracts v4.4.0 (utils/Strings.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Strings.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -552,7 +557,7 @@ library Strings {
 
 // Dependency file: @openzeppelin/contracts/utils/introspection/ERC165.sol
 
-// OpenZeppelin Contracts v4.4.0 (utils/introspection/ERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -584,7 +589,7 @@ abstract contract ERC165 is IERC165 {
 
 // Dependency file: @openzeppelin/contracts/token/ERC721/ERC721.sol
 
-// OpenZeppelin Contracts v4.4.0 (token/ERC721/ERC721.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC721/ERC721.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -872,6 +877,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         _owners[tokenId] = to;
 
         emit Transfer(address(0), to, tokenId);
+
+        _afterTokenTransfer(address(0), to, tokenId);
     }
 
     /**
@@ -896,6 +903,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         delete _owners[tokenId];
 
         emit Transfer(owner, address(0), tokenId);
+
+        _afterTokenTransfer(owner, address(0), tokenId);
     }
 
     /**
@@ -914,7 +923,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) internal virtual {
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer of token that is not own");
+        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
 
         _beforeTokenTransfer(from, to, tokenId);
@@ -927,6 +936,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         _owners[tokenId] = to;
 
         emit Transfer(from, to, tokenId);
+
+        _afterTokenTransfer(from, to, tokenId);
     }
 
     /**
@@ -1006,12 +1017,29 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) internal virtual {}
+
+    /**
+     * @dev Hook that is called after any transfer of tokens. This includes
+     * minting and burning.
+     *
+     * Calling conditions:
+     *
+     * - when `from` and `to` are both non-zero.
+     * - `from` and `to` are never both zero.
+     *
+     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+     */
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual {}
 }
 
 
 // Dependency file: @openzeppelin/contracts/access/Ownable.sol
 
-// OpenZeppelin Contracts v4.4.0 (access/Ownable.sol)
+// OpenZeppelin Contracts v4.4.1 (access/Ownable.sol)
 
 // pragma solidity ^0.8.0;
 

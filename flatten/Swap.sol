@@ -38,7 +38,7 @@ interface INFT {
 
 library Bytes {
   // Convert bytes to bytes32[]
-  function toBytes32Array(bytes memory input) public pure returns (bytes32[] memory) {
+  function toBytes32Array(bytes memory input) internal pure returns (bytes32[] memory) {
     require(input.length % 32 == 0, 'Bytes: invalid data length should divied by 32');
     bytes32[] memory result = new bytes32[](input.length / 32);
     assembly {
@@ -64,7 +64,7 @@ library Bytes {
   }
 
   // Read address from input bytes buffer
-  function readAddress(bytes memory input, uint256 offset) public pure returns (address result) {
+  function readAddress(bytes memory input, uint256 offset) internal pure returns (address result) {
     require(offset + 20 <= input.length, 'Bytes: Out of range, can not read address from bytes');
     assembly {
       result := shr(96, mload(add(add(input, 0x20), offset)))
@@ -72,7 +72,7 @@ library Bytes {
   }
 
   // Read uint256 from input bytes buffer
-  function readUint256(bytes memory input, uint256 offset) public pure returns (uint256 result) {
+  function readUint256(bytes memory input, uint256 offset) internal pure returns (uint256 result) {
     require(offset + 32 <= input.length, 'Bytes: Out of range, can not read uint256 from bytes');
     assembly {
       result := mload(add(add(input, 0x20), offset))
@@ -84,7 +84,7 @@ library Bytes {
     bytes memory input,
     uint256 offset,
     uint256 length
-  ) public pure returns (bytes memory) {
+  ) internal pure returns (bytes memory) {
     require(offset + length <= input.length, 'Bytes: Out of range, can not read bytes from bytes');
     bytes memory result = new bytes(length);
     assembly {
@@ -112,7 +112,7 @@ library Bytes {
 // pragma solidity >=0.8.4 <0.9.0;
 
 library Verifier {
-  function verifySerialized(bytes memory message, bytes memory signature) public pure returns (address) {
+  function verifySerialized(bytes memory message, bytes memory signature) internal pure returns (address) {
     bytes32 r;
     bytes32 s;
     uint8 v;
@@ -137,7 +137,7 @@ library Verifier {
     bytes32 r,
     bytes32 s,
     uint8 v
-  ) public pure returns (address) {
+  ) internal pure returns (address) {
     if (v < 27) {
       v += 27;
     }
@@ -149,7 +149,7 @@ library Verifier {
     return ecrecover(hashes, v, r, s);
   }
 
-  function uintToStr(uint256 value) public pure returns (string memory result) {
+  function uintToStr(uint256 value) internal pure returns (string memory result) {
     // Inspired by OraclizeAPI's implementation - MIT licence
     // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 
