@@ -1,12 +1,12 @@
 import Deployer from './deployer';
 import { registryRecords } from './const';
-import { IConfigurationExtend } from './deployer-infrastructure';
+import { IConfiguration } from './deployer-infrastructure';
 import { NFT, Registry, RNG, OracleProxy, DuelistKingDistributor, DuelistKingMerchant } from '../../typechain';
 import { printAllEvents } from './functions';
 
 export interface IDeployContext {
   deployer: Deployer;
-  config: IConfigurationExtend;
+  config: IConfiguration;
   infrastructure: {
     rng: RNG;
     registry: Registry;
@@ -21,13 +21,10 @@ export interface IDeployContext {
   };
 }
 
-export default async function init(context: {
-  deployer: Deployer;
-  config: IConfigurationExtend;
-}): Promise<IDeployContext> {
+export default async function init(context: { deployer: Deployer; config: IConfiguration }): Promise<IDeployContext> {
   const { deployer, config } = context;
   // Deploy libraries
-  deployer.connect(config.duelistKing.operator);
+  deployer.connect(config.deployerSigner);
 
   const registry = <Registry>deployer.getDeployedContract('Infrastructure/Registry');
   const rng = <RNG>deployer.getDeployedContract('Infrastructure/RNG');
@@ -107,7 +104,6 @@ export default async function init(context: {
           // Infrastructure
           registryRecords.domain.infrastructure,
           registryRecords.domain.infrastructure,
-          registryRecords.domain.infrastructure,
           //Duelist King
           registryRecords.domain.duelistKing,
           registryRecords.domain.duelistKing,
@@ -117,7 +113,6 @@ export default async function init(context: {
         ],
         [
           // Infrastructure
-          registryRecords.name.operator,
           registryRecords.name.oracle,
           registryRecords.name.rng,
           // Duelist King
@@ -129,11 +124,10 @@ export default async function init(context: {
         ],
         [
           // Infrastructure
-          config.infrastructure.operatorAddress,
           infrastructureOracleProxy.address,
           rng.address,
           // Duelist King
-          config.duelistKing.operatorAddress,
+          await config.deployerSigner.getAddress(),
           duelistKingOracleProxy.address,
           distributor.address,
           merchant.address,
@@ -162,13 +156,36 @@ export default async function init(context: {
       ),
     );
 
-    for (let i = 0; i < config.infrastructure.oracles.length; i += 1) {
+    for (let i = 0; i < config.infrastructure.oracleAddresses.length; i += 1) {
       await printAllEvents(await infrastructureOracleProxy.addController(config.infrastructure.oracleAddresses[i]));
     }
 
-    for (let i = 0; i < config.duelistKing.oracles.length; i += 1) {
+    for (let i = 0; i < config.duelistKing.oracleAddresses.length; i += 1) {
       await printAllEvents(await duelistKingOracleProxy.addController(config.duelistKing.oracleAddresses[i]));
     }
+
+    await printAllEvents(
+      await registry.batchSet(
+        [
+          // Infrastructure
+          registryRecords.domain.infrastructure,
+          //Duelist King
+          registryRecords.domain.duelistKing,
+        ],
+        [
+          // Infrastructure
+          registryRecords.name.operator,
+          // Duelist King
+          registryRecords.name.operator,
+        ],
+        [
+          // Infrastructure
+          config.infrastructure.operatorAddress,
+          // Duelist King
+          config.duelistKing.operatorAddress,
+        ],
+      ),
+    );
   });
 
   return {

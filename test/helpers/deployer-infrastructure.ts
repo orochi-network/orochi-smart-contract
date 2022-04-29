@@ -4,30 +4,16 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { registryRecords } from './const';
 
 export interface IOperators {
-  operator: Signer;
-  oracles: Signer[];
+  operatorAddress: string;
+  oracleAddresses: string[];
 }
 
 export interface IConfiguration {
   network: string;
-  salesAgent: Signer;
+  deployerSigner: Signer;
+  salesAgentAddress: string;
   infrastructure: IOperators;
   duelistKing: IOperators;
-}
-
-export interface IOperatorsExtend {
-  operator: Signer;
-  operatorAddress: string;
-  oracles: Signer[];
-  oracleAddresses: string[];
-}
-
-export interface IConfigurationExtend {
-  network: string;
-  salesAgent: Signer;
-  salesAgentAddress: string;
-  infrastructure: IOperatorsExtend;
-  duelistKing: IOperatorsExtend;
 }
 
 async function getAddresses(singers: Signer[]): Promise<string[]> {
@@ -38,34 +24,13 @@ async function getAddresses(singers: Signer[]): Promise<string[]> {
   return tmp;
 }
 
-async function extendConfig(conf: IConfiguration): Promise<IConfigurationExtend> {
-  const { network, salesAgent, infrastructure, duelistKing } = conf;
-  return {
-    network,
-    salesAgent,
-    salesAgentAddress: await salesAgent.getAddress(),
-    infrastructure: {
-      operator: infrastructure.operator,
-      operatorAddress: await infrastructure.operator.getAddress(),
-      oracles: infrastructure.oracles,
-      oracleAddresses: await getAddresses(infrastructure.oracles),
-    },
-    duelistKing: {
-      operator: duelistKing.operator,
-      operatorAddress: await duelistKing.operator.getAddress(),
-      oracles: duelistKing.oracles,
-      oracleAddresses: await getAddresses(duelistKing.oracles),
-    },
-  };
-}
-
 export default async function init(
   hre: HardhatRuntimeEnvironment,
   config: IConfiguration,
-): Promise<{ deployer: Deployer; config: IConfigurationExtend }> {
+): Promise<{ deployer: Deployer; config: IConfiguration }> {
   const deployer = Deployer.getInstance(hre);
   // Connect to infrastructure operator
-  deployer.connect(config.infrastructure.operator);
+  deployer.connect(config.deployerSigner);
 
   // Deploy registry
   const registry = await deployer.contractDeploy('Infrastructure/Registry', []);
@@ -83,6 +48,6 @@ export default async function init(
 
   return {
     deployer,
-    config: await extendConfig(config),
+    config,
   };
 }

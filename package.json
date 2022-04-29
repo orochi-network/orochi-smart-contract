@@ -1,9 +1,9 @@
 {
-  "name": "dkdao",
+  "name": "orochi-smart-contract",
   "version": "1.0.0",
-  "description": "DKDAO",
+  "description": "Orochi Network smart contract",
   "main": "index.js",
-  "repository": "git@github.com:DK-DAO/infrastructure.git",
+  "repository": "https://github.com/orochi-network/orochi-smart-contract.git",
   "author": "Chiro Hiro <chiro8x@gmail.com>",
   "license": "Apache-2.0",
   "private": false,
@@ -16,9 +16,7 @@
     "deploy:testnet": "hardhat --network testnet deploy",
     "deploy:fantom": "hardhat --network fantom deploy",
     "flatten": "waffle flatten && node ./clean.js",
-    "fork-node": "hardhat --config hardhat-ethfork.config.ts node",
-    "fork-deploy": "hardhat --config hardhat-ethfork.config.ts --network local deploy",
-    "live-test": "hardhat --config hardhat-ethfork.config.ts live-test --wallet 0xcC527eb38F459882f0efFbAB8fe79B47716DE72F"
+    "fork-node": "hardhat --config hardhat-ethfork.config.ts node"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-waffle": "^2.0.1",
