@@ -23,14 +23,15 @@ describe('DuelistKingDistributor', function () {
     context = await initDuelistKing(
       await initInfrastructure(hre, {
         network: hre.network.name,
-        salesAgent: accounts[9],
+        deployerSigner: accounts[0],
+        salesAgentAddress: accounts[9].address,
         infrastructure: {
-          operator: accounts[0],
-          oracles: [accounts[1]],
+          operatorAddress: accounts[0].address,
+          oracleAddresses: [accounts[1].address],
         },
         duelistKing: {
-          operator: accounts[2],
-          oracles: [accounts[3]],
+          operatorAddress: accounts[2].address,
+          oracleAddresses: [accounts[3].address],
         },
       }),
     );
@@ -220,11 +221,10 @@ describe('DuelistKingDistributor', function () {
   it('Duelistking Operator should able to call issueGenesisCard() in DuelistKingDistributor', async () => {
     const {
       duelistKing: { distributor, card },
-      config: {
-        duelistKing: { operator },
-      },
     } = context;
+
     boxes = [];
+    const operator = accounts[2];
     const txResult = await (await distributor.connect(operator).issueGenesisCard(accounts[4].address, 400)).wait();
 
     console.log(
@@ -251,11 +251,9 @@ describe('DuelistKingDistributor', function () {
   it('Duelistking Operator should able to call setRemainingBoxes() in DuelistKingDistributor', async () => {
     const {
       duelistKing: { merchant, distributor, card },
-      config: {
-        duelistKing: { operator },
-      },
     } = context;
 
+    const operator = accounts[2];
     const timestamp = await getCurrentBlockTimestamp(hre);
     const setAmount = 1000;
     const phaseId = 2;

@@ -12,14 +12,15 @@ describe('Registry', () => {
     context = await initDuelistKing(
       await initInfrastructure(hre, {
         network: hre.network.name,
-        salesAgent: accounts[9],
+        deployerSigner: accounts[0],
+        salesAgentAddress: accounts[9].address,
         infrastructure: {
-          operator: accounts[0],
-          oracles: [accounts[1]],
+          operatorAddress: accounts[0].address,
+          oracleAddresses: [accounts[1].address],
         },
         duelistKing: {
-          operator: accounts[2],
-          oracles: [accounts[3]],
+          operatorAddress: accounts[2].address,
+          oracleAddresses: [accounts[3].address],
         },
       }),
     );
