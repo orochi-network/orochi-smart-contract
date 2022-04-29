@@ -1,231 +1,109 @@
-// Dependency file: @openzeppelin/contracts/utils/math/SafeMath.sol
+// Dependency file: contracts/interfaces/IRegistry.sol
 
-// SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/math/SafeMath.sol)
+// SPDX-License-Identifier: Apache-2.0
+// pragma solidity >=0.8.4 <0.9.0;
 
-// pragma solidity ^0.8.0;
+interface IRegistry {
+  event Registered(bytes32 domain, bytes32 indexed name, address indexed addr);
 
-// CAUTION
-// This version of SafeMath should only be used with Solidity 0.8 or later,
-// because it relies on the compiler's built in overflow checks.
+  function isExistRecord(bytes32 domain, bytes32 name) external view returns (bool);
 
-/**
- * @dev Wrappers over Solidity's arithmetic operations.
- *
- * NOTE: `SafeMath` is generally not needed starting with Solidity 0.8, since the compiler
- * now has built in overflow checking.
- */
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            uint256 c = a + b;
-            if (c < a) return (false, 0);
-            return (true, c);
-        }
-    }
+  function set(
+    bytes32 domain,
+    bytes32 name,
+    address addr
+  ) external returns (bool);
 
-    /**
-     * @dev Returns the substraction of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b > a) return (false, 0);
-            return (true, a - b);
-        }
-    }
+  function batchSet(
+    bytes32[] calldata domains,
+    bytes32[] calldata names,
+    address[] calldata addrs
+  ) external returns (bool);
 
-    /**
-     * @dev Returns the multiplication of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-            // benefit is lost if 'b' is also tested.
-            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-            if (a == 0) return (true, 0);
-            uint256 c = a * b;
-            if (c / a != b) return (false, 0);
-            return (true, c);
-        }
-    }
+  function getAddress(bytes32 domain, bytes32 name) external view returns (address);
 
-    /**
-     * @dev Returns the division of two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a / b);
-        }
-    }
+  function getDomainAndName(address addr) external view returns (bytes32, bytes32);
+}
 
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a % b);
-        }
-    }
 
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a + b;
-    }
+// Dependency file: contracts/libraries/RegistryUser.sol
 
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a - b;
-    }
+// pragma solidity >=0.8.4 <0.9.0;
 
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a * b;
-    }
+// import 'contracts/interfaces/IRegistry.sol';
 
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator.
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a / b;
-    }
+abstract contract RegistryUser {
+  // Registry contract
+  IRegistry internal _registry;
 
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a % b;
-    }
+  // Active domain
+  bytes32 internal _domain;
 
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {trySub}.
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b <= a, errorMessage);
-            return a - b;
-        }
-    }
+  // Initialized
+  bool private _initialized = false;
 
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a / b;
-        }
-    }
+  // Allow same domain calls
+  modifier onlyAllowSameDomain(bytes32 name) {
+    require(msg.sender == _registry.getAddress(_domain, name), 'UserRegistry: Only allow call from same domain');
+    _;
+  }
 
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting with custom message when dividing by zero.
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {tryMod}.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a % b;
-        }
-    }
+  // Allow cross domain call
+  modifier onlyAllowCrossDomain(bytes32 fromDomain, bytes32 name) {
+    require(
+      msg.sender == _registry.getAddress(fromDomain, name),
+      'UserRegistry: Only allow call from allowed cross domain'
+    );
+    _;
+  }
+
+  /*******************************************************
+   * Internal section
+   ********************************************************/
+
+  // Constructing with registry address and its active domain
+  function _registryUserInit(address registry_, bytes32 domain_) internal returns (bool) {
+    require(!_initialized, "UserRegistry: It's only able to initialize once");
+    _registry = IRegistry(registry_);
+    _domain = domain_;
+    _initialized = true;
+    return true;
+  }
+
+  // Get address in the same domain
+  function _getAddressSameDomain(bytes32 name) internal view returns (address) {
+    return _registry.getAddress(_domain, name);
+  }
+
+  /*******************************************************
+   * View section
+   ********************************************************/
+
+  // Return active domain
+  function getDomain() external view returns (bytes32) {
+    return _domain;
+  }
+
+  // Return registry address
+  function getRegistry() external view returns (address) {
+    return address(_registry);
+  }
+}
+
+
+// Dependency file: contracts/interfaces/IDistributor.sol
+
+// pragma solidity >=0.8.4 <0.9.0;
+
+interface IDistributor {
+  // Mint boxes
+  function mintBoxes(
+    address owner,
+    uint256 numberOfBoxes,
+    uint256 phaseId
+  ) external returns (bool);
+
+  function getRemainingBox(uint256 phaseId) external view returns (uint256);
 }
 
 
@@ -1085,149 +963,179 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 }
 
 
-// Dependency file: contracts/operators/Vesting.sol
-
-// pragma solidity >=0.8.4 <0.9.0;
-
-contract Vesting {
-  struct Term {
-    address genesis;
-    address token;
-    address beneficiary;
-    uint256 unlockAtTGE;
-    uint256 cliffDuration;
-    uint256 startCliff;
-    uint256 vestingDuration;
-    uint256 releaseType;
-    uint256 amount;
-  }
-
-  struct Schedule {
-    address genesis;
-    address beneficiary;
-    uint256 startVesting;
-    uint256 totalBlocks;
-    uint256 consumedBlocks;
-    uint256 releaseType;
-    uint256 unlockAmountPerBlock;
-    uint256 remain;
-  }
-}
-
-
-// Root file: contracts/operators/VestingContract.sol
+// Root file: contracts/dk/DuelistKingMerchant.sol
 
 pragma solidity >=0.8.4 <0.9.0;
 
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol';
+// import 'contracts/libraries/RegistryUser.sol';
+// import 'contracts/interfaces/IDistributor.sol';
 // import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 // import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol';
-// import 'contracts/operators/Vesting.sol';
 
 /**
- * Vesting Contract
+ * Duelist King Merchant
+ * Name: DuelistKingMerchant
+ * Doamin: Duelist King
  */
-contract VestingContract {
+contract DuelistKingMerchant is RegistryUser {
   using SafeERC20 for ERC20;
-  using SafeMath for uint256;
 
-  ERC20 private _token;
+  // Sale campaign
+  struct SaleCampaign {
+    uint256 phaseId;
+    uint256 totalSale;
+    uint256 basePrice;
+    uint256 deadline;
+  }
 
-  uint256 immutable RELEASE_MONTHLY = 1;
-  uint256 immutable RELEASE_LINEAR = 2;
+  // Stable coin info
+  struct Stablecoin {
+    address tokenAddress;
+    uint256 decimals;
+  }
 
-  Vesting.Schedule private _schedule;
+  // Discount are in 1/10^6, e.g: 100,000 = 10%
+  // = 100,000/10^6 = 0.1 * 100% = 10%
+  mapping(bytes32 => uint256) private _discount;
 
-  event Withdrawal(address beneficiary, uint256 blocks, uint256 amount);
+  // Maping sale campaign
+  mapping(uint256 => SaleCampaign) private _campaign;
 
-  function init(Vesting.Term memory term) external returns (bool) {
-    require(address(_token) == address(0), 'VestingContract: Can not be called twice');
-    require(term.unlockAtTGE <= term.amount, 'VestingContract: Unlocked amount can not greater than total amount');
-    Vesting.Schedule memory schedule;
-    _token = ERC20(term.token);
-    if (term.unlockAtTGE > 0) {
-      // Unlock token at TGE
-      _token.safeTransferFrom(term.genesis, term.beneficiary, term.unlockAtTGE);
+  // Stablecoin information
+  mapping(address => Stablecoin) private _stablecoin;
+
+  // Total campaign
+  uint256 private _totalCampaign;
+
+  // New campaign
+  event NewCampaign(uint256 indexed phaseId, uint256 indexed totalSale, uint256 indexed basePrice);
+
+  // A user buy card from merchant
+  event Purchase(address indexed owner, uint256 indexed phaseId, uint256 indexed numberOfBoxes);
+
+  // Update supporting stablecoin
+  event UpdateStablecoin(address indexed contractAddress, uint256 indexed decimals, bool isListed);
+
+  // Constructor method
+  constructor(address registry_, bytes32 domain_) {
+    _registryUserInit(registry_, domain_);
+  }
+
+  /*******************************************************
+   * Sales Agent section
+   ********************************************************/
+
+  // Create a new campaign
+  function createNewCampaign(SaleCampaign memory newCampaign)
+    external
+    onlyAllowSameDomain('Sales Agent')
+    returns (uint256)
+  {
+    IDistributor distributor = IDistributor(_getAddressSameDomain('Distributor'));
+    require(
+      distributor.getRemainingBox(newCampaign.phaseId) > newCampaign.totalSale,
+      'Merchant: Invalid number of selling boxes'
+    );
+    // We use 10^6 or 6 decimal for fiat value, e.g $4.8 -> 4,800,000
+    require(newCampaign.basePrice > 1000000, 'Merchant: Base price must greater than 1 unit');
+    require(newCampaign.deadline > block.timestamp, 'Merchant: Deadline must be in the future');
+    uint256 currentCampaignId = _totalCampaign;
+    _campaign[currentCampaignId] = newCampaign;
+    _totalCampaign += 1;
+    emit NewCampaign(newCampaign.phaseId, newCampaign.totalSale, newCampaign.basePrice);
+    return currentCampaignId;
+  }
+
+
+  // Create a new supported stable coin
+  function manageStablecoin(
+    address tokenAddress,
+    uint256 decimals,
+    bool isListing
+  ) external onlyAllowSameDomain('Sales Agent') returns (bool) {
+    if (decimals == 0) {
+      decimals = ERC20(tokenAddress).decimals();
     }
-    // Remaining token
-    schedule.beneficiary = term.beneficiary;
-    schedule.genesis = term.genesis;
-    schedule.remain = term.amount.sub(term.unlockAtTGE);
-    schedule.releaseType = term.releaseType;
-    schedule.consumedBlocks = 0;
-    schedule.startVesting = term.startCliff.add(term.cliffDuration);
-    schedule.totalBlocks = _getVestedBlocks(term.vestingDuration, term.releaseType);
-    schedule.unlockAmountPerBlock = schedule.remain.div(schedule.totalBlocks);
-    _schedule = schedule;
+    _stablecoin[tokenAddress] = Stablecoin({ tokenAddress: tokenAddress, decimals: decimals });
+    emit UpdateStablecoin(tokenAddress, decimals, isListing);
     return true;
   }
 
-  function withdraw() external returns (bool) {
-    address owner = msg.sender;
-    Vesting.Schedule memory schedule = _schedule;
-    require(schedule.beneficiary == owner, 'VestingContract: We do not allow cross trigger');
-    require(schedule.remain > 0, 'VestingContract: Insufficient balance');
-    require(block.timestamp > schedule.startVesting, 'VestingContract: Your token is not vested');
-    require(schedule.consumedBlocks < schedule.totalBlocks, 'VestingContract: You consumed all blocks');
-    // Calculate vested block
-    uint256 vestedBlocks = _getVestedBlocks(block.timestamp.sub(schedule.startVesting), schedule.releaseType);
-    // Prevent overflow
-    if (vestedBlocks >= schedule.totalBlocks) {
-      vestedBlocks = schedule.totalBlocks;
-    }
-    // Calculate redeemable amount
-    uint256 redeemableBlocks = vestedBlocks.sub(schedule.consumedBlocks);
-    uint256 amount = redeemableBlocks.mul(schedule.unlockAmountPerBlock);
-    require(amount > 0, 'VestingContract: Token was not vested');
-    // Process transfer
-    _token.safeTransferFrom(schedule.genesis, owner, amount);
-    // Update data
-    schedule.consumedBlocks = schedule.consumedBlocks.add(redeemableBlocks);
-    schedule.remain = schedule.remain.sub(amount);
-    emit Withdrawal(schedule.beneficiary, redeemableBlocks, amount);
-    _schedule = schedule;
+  /*******************************************************
+   * Public section
+   ********************************************************/
+
+  // Anyone could buy NFT from smart contract
+  function buy(
+    uint256 campaignId,
+    uint256 numberOfBoxes,
+    address tokenAddress,
+    bytes32 code
+  ) external returns (bool) {
+    require(isSupportedStablecoin(tokenAddress), 'Merchant: Stablecoin was not supported');
+    IDistributor distributor = IDistributor(_getAddressSameDomain('Distributor'));
+    SaleCampaign memory currentCampaign = _campaign[campaignId];
+    require(block.timestamp < currentCampaign.deadline, 'Merchant: Sale campaign was ended');
+    uint256 priceInToken = tokenAmountAfterDiscount(
+      currentCampaign.basePrice,
+      code,
+      _stablecoin[tokenAddress].decimals
+    );
+    // Calcualate box price
+
+    // Verify payment
+    _tokenTransfer(tokenAddress, msg.sender, address(this), priceInToken * numberOfBoxes);
+    distributor.mintBoxes(msg.sender, numberOfBoxes, currentCampaign.phaseId);
+    emit Purchase(msg.sender, currentCampaign.phaseId, numberOfBoxes);
     return true;
   }
 
-  function _availableBalance() private view returns (uint256) {
-    Vesting.Schedule memory schedule = _schedule;
-    if (block.timestamp > schedule.startVesting) {
-      uint256 vestedBlocks = _getVestedBlocks(block.timestamp.sub(schedule.startVesting), schedule.releaseType);
-      // Prevent overflow
-      if (vestedBlocks >= schedule.totalBlocks) {
-        vestedBlocks = schedule.totalBlocks;
-      }
-      uint256 redeemableBlocks = vestedBlocks.sub(schedule.consumedBlocks);
-      return redeemableBlocks.mul(schedule.unlockAmountPerBlock);
-    }
-    return 0;
+  /*******************************************************
+   * Private section
+   ********************************************************/
+
+  // Transfer token to receiver
+  function _tokenTransfer(
+    address tokenAddress,
+    address sender,
+    address receiver,
+    uint256 amount
+  ) private returns (bool) {
+    ERC20 token = ERC20(tokenAddress);
+    uint256 beforeBalance = token.balanceOf(receiver);
+    token.safeTransferFrom(sender, receiver, amount);
+    uint256 afterBalance = token.balanceOf(receiver);
+    require(afterBalance - beforeBalance == amount, 'Merchant: Invalid token transfer');
+    return true;
   }
 
-  function _getVestedBlocks(uint256 duration, uint256 releaseType) private pure returns (uint256) {
-    return releaseType == RELEASE_LINEAR ? duration.div(1 days) : duration.div(30 days);
+  /*******************************************************
+   * View section
+   ********************************************************/
+
+  // Check a stablecoin is supported or not
+  function isSupportedStablecoin(address tokenAddress) public view returns (bool) {
+    return _stablecoin[tokenAddress].tokenAddress == tokenAddress;
   }
 
-  function balanceOf(address) public view returns (uint256) {
-    return _availableBalance();
+  // Calculate price after apply discount code
+  // discountedPrice = basePrice - (basePrice * discount)/10^6
+  // tokenPrice = discountedPrice * 10^decimals
+  function tokenAmountAfterDiscount(
+    uint256 basePrice,
+    bytes32 code,
+    uint256 decmials
+  ) public view returns (uint256) {
+    return ((basePrice - ((basePrice * _discount[code]) / 1000000)) * 10**decmials) / 1000000;
   }
 
-  function totalSupply() external view returns (uint256) {
-    return _token.totalSupply();
+  // Get total campaign
+  function getTotalCampaign() external view returns (uint256) {
+    return _totalCampaign;
   }
 
-  function name() external view returns (string memory) {
-    return string(abi.encodePacked('Vesting ', _token.name()));
-  }
-
-  function symbol() external view returns (string memory) {
-    return string(abi.encodePacked('V', _token.symbol()));
-  }
-
-  function decimals() external view returns (uint8) {
-    return _token.decimals();
-  }
-
-  function getVestingSchedule() external view returns (Vesting.Schedule memory) {
-    return _schedule;
+  // Get campaign detail
+  function getCampaignDetail(uint256 campaignId) external view returns (SaleCampaign memory) {
+    return _campaign[campaignId];
   }
 }

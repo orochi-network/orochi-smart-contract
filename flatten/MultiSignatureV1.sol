@@ -365,60 +365,37 @@ library Bytes {
 }
 
 
-// Dependency file: contracts/interfaces/IRegistry.sol
+// Dependency file: contracts/libraries/Permissioned.sol
 
 // pragma solidity >=0.8.4 <0.9.0;
 
-interface IRegistry {
-  event Registered(bytes32 domain, bytes32 indexed name, address indexed addr);
+contract Permissioned {
+  // Permission constants
+  uint256 internal constant PERMISSION_NONE = 0;
 
-  function isExistRecord(bytes32 domain, bytes32 name) external view returns (bool);
+  // Multi user data
+  mapping(address => uint256) private _userRole;
 
-  function set(
-    bytes32 domain,
-    bytes32 name,
-    address addr
-  ) external returns (bool);
+  // Active time of user
+  mapping(address => uint256) private _activeTime;
 
-  function batchSet(
-    bytes32[] calldata domains,
-    bytes32[] calldata names,
-    address[] calldata addrs
-  ) external returns (bool);
+  // Total number of users
+  uint256 private _totalUser;
 
-  function getAddress(bytes32 domain, bytes32 name) external view returns (address);
+  // Transfer role to new user event
+  event TransferRole(address indexed preUser, address indexed newUser, uint256 indexed role);
 
-  function getDomainAndName(address addr) external view returns (bytes32, bytes32);
-}
-
-
-// Dependency file: contracts/libraries/RegistryUser.sol
-
-// pragma solidity >=0.8.4 <0.9.0;
-
-// import 'contracts/interfaces/IRegistry.sol';
-
-abstract contract RegistryUser {
-  // Registry contract
-  IRegistry internal _registry;
-
-  // Active domain
-  bytes32 internal _domain;
-
-  // Initialized
-  bool private _initialized = false;
-
-  // Allow same domain calls
-  modifier onlyAllowSameDomain(bytes32 name) {
-    require(msg.sender == _registry.getAddress(_domain, name), 'UserRegistry: Only allow call from same domain');
+  // Only allow users who has given role trigger smart contract
+  modifier onlyAllow(uint256 permission) {
+    require(_userRole[msg.sender] & permission > 0 && block.timestamp > _activeTime[msg.sender], 'P: Access denied');
     _;
   }
 
-  // Allow cross domain call
-  modifier onlyAllowCrossDomain(bytes32 fromDomain, bytes32 name) {
+  // Only allow listed users to trigger smart contract
+  modifier onlyUser() {
     require(
-      msg.sender == _registry.getAddress(fromDomain, name),
-      'UserRegistry: Only allow call from allowed cross domain'
+      _userRole[msg.sender] > PERMISSION_NONE && block.timestamp > _activeTime[msg.sender],
+      'P: We are only allow user to trigger'
     );
     _;
   }
@@ -427,141 +404,358 @@ abstract contract RegistryUser {
    * Internal section
    ********************************************************/
 
-  // Constructing with registry address and its active domain
-  function _registryUserInit(address registry_, bytes32 domain_) internal returns (bool) {
-    require(!_initialized, "UserRegistry: It's only able to initialize once");
-    _registry = IRegistry(registry_);
-    _domain = domain_;
-    _initialized = true;
-    return true;
+  // Init method which can be called once
+  function _init(address[] memory users_, uint256[] memory roles_) internal returns (uint256) {
+    require(_totalUser == 0, 'P: Only able to be called once');
+    require(users_.length == roles_.length, 'P: Length mismatch');
+    for (uint256 i = 0; i < users_.length; i += 1) {
+      _userRole[users_[i]] = roles_[i];
+      emit TransferRole(address(0), users_[i], roles_[i]);
+    }
+    _totalUser = users_.length;
+    return users_.length;
   }
 
-  // Get address in the same domain
-  function _getAddressSameDomain(bytes32 name) internal view returns (address) {
-    return _registry.getAddress(_domain, name);
+  // Transfer role to new user
+  function _transferRole(address newUser, uint256 lockDuration) internal returns (uint256) {
+    require(newUser != address(0), 'P: Can not transfer user role');
+    uint256 role = _userRole[msg.sender];
+    // Remove user
+    _userRole[msg.sender] = PERMISSION_NONE;
+    // Assign role for new user
+    _userRole[newUser] = role;
+    _activeTime[newUser] = block.timestamp + lockDuration;
+    emit TransferRole(msg.sender, newUser, role);
+    return _userRole[newUser];
   }
 
   /*******************************************************
    * View section
    ********************************************************/
 
-  // Return active domain
-  function getDomain() external view returns (bytes32) {
-    return _domain;
+  // Read role of an user
+  function getRole(address checkAddress) public view returns (uint256) {
+    return _userRole[checkAddress];
   }
 
-  // Return registry address
-  function getRegistry() external view returns (address) {
-    return address(_registry);
+  // Get active time of user
+  function getActiveTime(address checkAddress) public view returns (uint256) {
+    return _activeTime[checkAddress];
+  }
+
+  // Is an address a user
+  function isUser(address checkAddress) public view returns (bool) {
+    return _userRole[checkAddress] > PERMISSION_NONE && block.timestamp > _activeTime[checkAddress];
+  }
+
+  // Check a permission is granted to user
+  function isPermission(address checkAddress, uint256 checkPermission) public view returns (bool) {
+    return isUser(checkAddress) && ((_userRole[checkAddress] & checkPermission) > 0);
+  }
+
+  // Get total number of user
+  function getTotalUser() public view returns (uint256) {
+    return _totalUser;
   }
 }
 
 
-// Root file: contracts/libraries/OracleProxy.sol
+// Dependency file: contracts/libraries/MultiSignatureStorage.sol
+
+// pragma solidity >=0.8.4 <0.9.0;
+
+/**
+ * Orochi Multi Signature Storage
+ * Noted: We going to split data and logic, this file shouldn't change
+ * Name: N/A
+ * Domain: N/A
+ */
+contract MultiSignatureStorage {
+  // Structure of proposal
+  struct Proposal {
+    int256 vote;
+    uint256 expired;
+    bool executed;
+    uint256 value;
+    address target;
+    bytes data;
+  }
+
+  // Proposal index, begin from 0
+  uint256 internal _totalProposal;
+
+  // Proposal storage
+  mapping(uint256 => Proposal) internal _proposalStorage;
+
+  // Voted storage
+  mapping(uint256 => mapping(address => bool)) internal _votedStorage;
+
+  // Quick transaction nonce
+  uint256 internal _nonce = 0;
+
+  // Total number of signer
+  uint256 internal _totalSigner = 0;
+
+  // Threshold for a proposal to be passed, it' usual 50%
+  int256 internal _threshold;
+
+  // Threshold for all participants to be drag a long, it's usual 70%
+  int256 internal _thresholdDrag;
+}
+
+
+// Root file: contracts/operators/MultiSignatureV1.sol
 
 pragma solidity >=0.8.4 <0.9.0;
 
 // import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/utils/Address.sol';
 // import 'contracts/libraries/Verifier.sol';
 // import 'contracts/libraries/Bytes.sol';
-// import 'contracts/libraries/RegistryUser.sol';
+// import 'contracts/libraries/Permissioned.sol';
+// import 'contracts/libraries/MultiSignatureStorage.sol';
 
 /**
- * Oracle Proxy
- * Name: Oracle
- * Domain: DKDAO, *
+ * Orochi Multi Signature Wallet
+ * Name: N/A
+ * Domain: N/A
  */
-contract OracleProxy is RegistryUser {
-  // Verify signature
-  using Bytes for bytes;
-
-  // Verify signature
-  using Verifier for bytes;
-
-  // Use address lib for address
+contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
+  // Address lib providing safe {call} and {delegatecall}
   using Address for address;
 
-  // Controller list
-  mapping(address => bool) private _controllers;
+  // Byte manipulation
+  using Bytes for bytes;
 
-  // List controller
-  event ListAddress(address indexed addr);
+  // Verifiy digital signature
+  using Verifier for bytes;
 
-  // Delist controller
-  event DelistAddress(address indexed addr);
+  // Permission constants
+  // Create a new proposal and do qick transfer
+  uint256 private constant PERMISSION_CREATE = 1;
+  // Allowed to sign quick transfer message and vote a proposal
+  uint256 private constant PERMISSION_VOTE = 2;
+  // Permission to execute the proposal
+  uint256 private constant PERMISSION_EXECUTE = 4;
+  // View permission only
+  uint256 private constant PERMISSION_OBSERVER = 4294967296;
 
-  constructor(address registry_, bytes32 domain_) {
-    // Set the operator
-    _registryUserInit(registry_, domain_);
+  // Create a new proposal
+  event NewProposal(address creator, uint256 indexed proposalId, uint256 indexed expired);
+
+  // Execute proposal
+  event ExecuteProposal(uint256 indexed proposalId, address indexed trigger, int256 indexed vote);
+
+  // Positive vote
+  event PositiveVote(uint256 indexed proposalId, address indexed owner);
+
+  // Negative vote
+  event NegativeVote(uint256 indexed proposalId, address indexed owner);
+
+  // Receive payment
+  event InternalTransaction(address indexed from, address indexed to, uint256 indexed value);
+
+  // Qick transfer event
+  event QuickTranfser(address indexed target, uint256 indexed value, bytes indexed data);
+
+  // This contract able to receive fund
+  receive() external payable {
+    if (msg.value > 0) emit InternalTransaction(msg.sender, address(this), msg.value);
   }
 
-  // Only allow listed oracle to trigger oracle proxy
-  modifier onlyListedController(bytes memory proof) {
-    require(proof.length == 97, 'OracleProxy: Wrong size of the proof, it must be 97 bytes');
-    bytes memory signature = proof.readBytes(0, 65);
-    bytes memory message = proof.readBytes(65, 32);
-    address sender = message.verifySerialized(signature);
-    uint256 timeAndNonce = message.readUint256(0);
-    uint256 expired = timeAndNonce >> 128;
-    require(expired > block.timestamp, 'OracleProxy: This proof was expired');
-    require(_controllers[sender], 'OracleProxy: Controller was not in the list');
-    _;
+  // Init method which can be called once
+  function init(
+    address[] memory users_,
+    uint256[] memory roles_,
+    int256 threshold_,
+    int256 thresholdDrag_
+  ) external {
+    require(_init(users_, roles_) > 0, 'S: Unable to init contract');
+    uint256 totalSinger = 0;
+    for (uint256 i = 0; i < users_.length; i += 1) {
+      if (roles_[i] & PERMISSION_VOTE > 0) {
+        totalSinger += 1;
+      }
+    }
+    // These values can be set once
+    _threshold = threshold_;
+    _thresholdDrag = thresholdDrag_;
+    _totalSigner = totalSinger;
   }
 
   /*******************************************************
-   * Operator section
+   * User section
    ********************************************************/
+  // Transfer role to new user
+  function transferRole(address newUser) external onlyUser {
+    // New user will be activated after 7 days
+    // We prevent them to vote and transfer permission to the other
+    // And vote again
+    _transferRole(newUser, 7 days);
+  }
 
-  // Add real Oracle to controller list
-  function addController(address controllerAddr) external onlyAllowSameDomain('Operator') returns (bool) {
-    _controllers[controllerAddr] = true;
-    emit ListAddress(controllerAddr);
+  /*******************************************************
+   * Creator section
+   ********************************************************/
+  // Transfer with signed proofs instead of on-chain voting
+  function quickTransfer(bytes[] memory signatures, bytes memory txData)
+    external
+    onlyAllow(PERMISSION_CREATE)
+    returns (bool)
+  {
+    uint256 totalSigned = 0;
+    address[] memory signedAddresses = new address[](signatures.length);
+    for (uint256 i = 0; i < signatures.length; i += 1) {
+      address signer = txData.verifySerialized(signatures[i]);
+      // Each signer only able to be counted once
+      if (isPermission(signer, PERMISSION_VOTE) && _isNotInclude(signedAddresses, signer)) {
+        signedAddresses[totalSigned] = signer;
+        totalSigned += 1;
+      }
+    }
+    require(_calculatePercent(int256(totalSigned)) >= _thresholdDrag, 'S: Drag threshold was not passed');
+    uint256 packagedNonce = txData.readUint256(0);
+    address target = txData.readAddress(32);
+    uint256 value = txData.readUint256(52);
+    bytes memory data = txData.readBytes(84, txData.length - 84);
+    uint256 nonce = packagedNonce & 0xffffffffffffffffffffffffffffffff;
+    uint256 votingTime = packagedNonce >> 128;
+    require(nonce - _nonce == 1, 'S: Invalid nonce value');
+    require(votingTime > block.timestamp && votingTime < block.timestamp + 3 days, 'S: Proof expired');
+    _nonce = nonce;
+    if (target.isContract()) {
+      target.functionCallWithValue(data, value);
+    } else {
+      payable(address(target)).transfer(value);
+    }
+    emit QuickTranfser(target, value, data);
     return true;
   }
 
-  // Remove real Oracle from controller list
-  function removeController(address controllerAddr) external onlyAllowSameDomain('Operator') returns (bool) {
-    _controllers[controllerAddr] = false;
-    emit DelistAddress(controllerAddr);
+  // Create a new proposal
+  function createProposal(
+    address target_,
+    uint256 value_,
+    uint256 expired_,
+    bytes memory data_
+  ) external onlyAllow(PERMISSION_CREATE) returns (uint256) {
+    // Minimum expire time is 1 day
+    uint256 expired = expired_ > block.timestamp + 1 days ? expired_ : block.timestamp + 1 days;
+    uint256 proposalIndex = _totalProposal;
+    _proposalStorage[proposalIndex] = Proposal({
+      target: target_,
+      value: value_,
+      data: data_,
+      expired: expired,
+      vote: 0,
+      executed: false
+    });
+    emit NewProposal(msg.sender, proposalIndex, expired);
+    _totalProposal = proposalIndex + 1;
+    return proposalIndex;
+  }
+
+  /*******************************************************
+   * Vote permission section
+   ********************************************************/
+  // Positive vote
+  function votePositive(uint256 proposalId) external onlyAllow(PERMISSION_VOTE) returns (bool) {
+    return _voteProposal(proposalId, true);
+  }
+
+  // Negative vote
+  function voteNegative(uint256 proposalId) external onlyAllow(PERMISSION_VOTE) returns (bool) {
+    return _voteProposal(proposalId, false);
+  }
+
+  /*******************************************************
+   * Execute permission section
+   ********************************************************/
+  // Execute a voted proposal
+  function execute(uint256 proposalId) external onlyAllow(PERMISSION_EXECUTE) returns (bool) {
+    Proposal memory currentProposal = _proposalStorage[proposalId];
+    require(currentProposal.executed == false, 'S: Proposal was executed');
+    int256 voting = _calculatePercent(currentProposal.vote);
+    // If positiveVoted < 70%, It need to pass 50% and expired
+    if (voting < int256(_thresholdDrag)) {
+      require(block.timestamp > _proposalStorage[proposalId].expired, "S: Voting period wasn't over");
+      require(voting >= 50, 'S: Vote was not pass 50%');
+    }
+
+    if (currentProposal.target.isContract()) {
+      currentProposal.target.functionCallWithValue(currentProposal.data, currentProposal.value);
+    } else {
+      payable(address(currentProposal.target)).transfer(currentProposal.value);
+    }
+    currentProposal.executed = true;
+    _proposalStorage[proposalId] = currentProposal;
+    emit ExecuteProposal(proposalId, msg.sender, currentProposal.vote);
     return true;
   }
 
   /*******************************************************
-   * Public section
+   * Private section
    ********************************************************/
-
-  // Safe call to a target address with given payload
-  function safeCall(
-    bytes memory proof,
-    address target,
-    uint256 value,
-    bytes memory data
-  ) external onlyListedController(proof) returns (bool) {
-    target.functionCallWithValue(data, value);
+  // Vote a proposal
+  function _voteProposal(uint256 proposalId, bool positive) private returns (bool) {
+    require(block.timestamp < _proposalStorage[proposalId].expired, 'S: Voting period was over');
+    require(_votedStorage[proposalId][msg.sender] == false, 'S: You had voted this proposal');
+    if (positive) {
+      _proposalStorage[proposalId].vote += 1;
+      emit PositiveVote(proposalId, msg.sender);
+    } else {
+      _proposalStorage[proposalId].vote -= 1;
+      emit NegativeVote(proposalId, msg.sender);
+    }
+    _votedStorage[proposalId][msg.sender] = true;
     return true;
   }
 
-  // Delegatecall to a target address with given payload
-  function safeDelegateCall(
-    bytes memory proof,
-    address target,
-    bytes calldata data
-  ) external onlyListedController(proof) returns (bool) {
-    target.functionDelegateCall(data);
+  /*******************************************************
+   * Pure section
+   ********************************************************/
+
+  function _isNotInclude(address[] memory addressList, address checkAddress) private pure returns (bool) {
+    for (uint256 i = 0; i < addressList.length; i += 1) {
+      if (addressList[i] == checkAddress) {
+        return false;
+      }
+    }
     return true;
+  }
+
+  function _calculatePercent(int256 votedUsers) private view returns (int256) {
+    return (votedUsers * 10000) / int256(_totalSigner * 100);
   }
 
   /*******************************************************
    * View section
    ********************************************************/
 
-  // Get valid nonce of next transaction
-  function getValidTimeNonce(uint256 timeout, uint256 randomNonce) external view returns (uint256) {
-    return ((block.timestamp + timeout) << 128) | randomNonce;
+  function getPackedTransaction(
+    address target,
+    uint256 value,
+    bytes memory data
+  ) external view returns (bytes memory) {
+    return abi.encodePacked(uint128(block.timestamp + 1 hours), uint128(_nonce + 1), target, value, data);
   }
 
-  // Check a address is controller
-  function isController(address inputAddress) external view returns (bool) {
-    return _controllers[inputAddress];
+  function getTotalProposal() external view returns (uint256) {
+    return _totalProposal;
+  }
+
+  function proposalDetail(uint256 index) external view returns (Proposal memory) {
+    return _proposalStorage[index];
+  }
+
+  function isVoted(uint256 proposalId, address owner) external view returns (bool) {
+    return _votedStorage[proposalId][owner];
+  }
+
+  function getNextValidNonce() external view returns (uint256) {
+    return _nonce + 1;
+  }
+
+  function getTotalSigner() external view returns (uint256) {
+    return _totalSigner;
   }
 }

@@ -4,7 +4,7 @@
 pragma solidity >=0.8.4 <0.9.0;
 
 library Verifier {
-  function verifySerialized(bytes memory message, bytes memory signature) public pure returns (address) {
+  function verifySerialized(bytes memory message, bytes memory signature) internal pure returns (address) {
     bytes32 r;
     bytes32 s;
     uint8 v;
@@ -29,7 +29,7 @@ library Verifier {
     bytes32 r,
     bytes32 s,
     uint8 v
-  ) public pure returns (address) {
+  ) internal pure returns (address) {
     if (v < 27) {
       v += 27;
     }
@@ -41,7 +41,7 @@ library Verifier {
     return ecrecover(hashes, v, r, s);
   }
 
-  function uintToStr(uint256 value) public pure returns (string memory result) {
+  function uintToStr(uint256 value) internal pure returns (string memory result) {
     // Inspired by OraclizeAPI's implementation - MIT licence
     // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 
