@@ -18,6 +18,7 @@ if (env.DUELIST_KING_DEPLOY_MNEMONIC !== 'baby nose young alone sport inside gra
   require('./tasks/transfer-token');
   require('./tasks/transfer-native-token');
   require('./tasks/open-boxes');
+  require('./tasks/deploy-multi-signature-v1');
 }
 
 const compilers = ['0.8.7'].map((item: string) => ({

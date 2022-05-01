@@ -11,7 +11,7 @@
     "build": "hardhat compile",
     "release": "yarn build && yarn flatten",
     "coverage": "hardhat compile && hardhat coverage",
-    "node": "hardhat node",
+    "node:local": "hardhat node",
     "test": "hardhat test",
     "deploy:local": "hardhat --network local deploy",
     "deploy:testnet": "hardhat --network testnet deploy",
