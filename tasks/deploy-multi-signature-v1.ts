@@ -6,7 +6,7 @@ import Deployer from '../test/helpers/deployer';
 import { printAllEvents } from '../test/helpers/functions';
 import { MultiSignatureV1 } from '../typechain';
 
-// Create a new proposal and do qick transfer
+// Create a new proposal and do quick transfer
 const PERMISSION_CREATE = 1;
 // Allowed to sign quick transfer message and vote a proposal
 const PERMISSION_VOTE = 2;

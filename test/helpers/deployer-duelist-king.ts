@@ -53,6 +53,10 @@ export default async function init(context: { deployer: Deployer; config: IConfi
     await deployer.contractDeploy('Duelist King/OracleProxy', [], registry.address, registryRecords.domain.duelistKing)
   );
 
+  const migratorOracleProxy = <OracleProxy>(
+    await deployer.contractDeploy('Migrator/OracleProxy', [], registry.address, registryRecords.domain.duelistKing)
+  );
+
   const distributor = <DuelistKingDistributor>(
     await deployer.contractDeploy(
       'Duelist King/DuelistKingDistributor',
@@ -110,6 +114,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
           registryRecords.domain.duelistKing,
           registryRecords.domain.duelistKing,
           registryRecords.domain.duelistKing,
+          registryRecords.domain.duelistKing,
         ],
         [
           // Infrastructure
@@ -121,6 +126,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
           registryRecords.name.distributor,
           registryRecords.name.merchant,
           registryRecords.name.salesAgent,
+          registryRecords.name.migrator,
         ],
         [
           // Infrastructure
@@ -132,6 +138,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
           distributor.address,
           merchant.address,
           config.salesAgentAddress,
+          migratorOracleProxy.address,
         ],
       ),
     );
@@ -162,6 +169,10 @@ export default async function init(context: { deployer: Deployer; config: IConfi
 
     for (let i = 0; i < config.duelistKing.oracleAddresses.length; i += 1) {
       await printAllEvents(await duelistKingOracleProxy.addController(config.duelistKing.oracleAddresses[i]));
+    }
+
+    for (let i = 0; i < config.migratorAddresses.length; i += 1) {
+      await printAllEvents(await migratorOracleProxy.addController(config.migratorAddresses[i]));
     }
 
     await printAllEvents(

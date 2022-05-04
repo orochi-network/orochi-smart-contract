@@ -5,11 +5,10 @@ import hre from 'hardhat';
 import { DuelistKingToken, TestToken } from '../typechain';
 import BytesBuffer from './helpers/bytes';
 import Card from './helpers/card';
-import { emptyBytes32, maxUint256, uint, zeroAddress } from './helpers/const';
+import { emptyBytes32, maxUint256, stringToBytes32, uint, zeroAddress } from './helpers/const';
 import initDuelistKing, { IDeployContext } from './helpers/deployer-duelist-king';
 import initInfrastructure from './helpers/deployer-infrastructure';
 import { craftProof, dayToSec, getCurrentBlockTimestamp, printAllEvents } from './helpers/functions';
-
 
 let context: IDeployContext;
 let accounts: SignerWithAddress[];
@@ -24,6 +23,7 @@ describe('DuelistKingDistributor', function () {
       await initInfrastructure(hre, {
         network: hre.network.name,
         deployerSigner: accounts[0],
+        migratorAddresses: [accounts[1].address],
         salesAgentAddress: accounts[9].address,
         infrastructure: {
           operatorAddress: accounts[0].address,
@@ -104,7 +104,7 @@ describe('DuelistKingDistributor', function () {
     await trashToken.connect(accounts[0]).transfer(accounts[4].address, BigNumber.from(10000).mul(uint));
     await trashToken.connect(accounts[4]).approve(merchant.address, maxUint256);
     await expect(merchant.connect(accounts[4]).buy(1, 50, trashToken.address, emptyBytes32)).to.be.revertedWith(
-      'Merchant: Stablecoin was not supported',
+      'ME:Stablecoin was not supported',
     );
   });
 
@@ -208,7 +208,6 @@ describe('DuelistKingDistributor', function () {
   });
 
   it('Owner balance should have 0 box after unboxing all boxes', async () => {
-
     const {
       duelistKing: { item, card },
     } = context;
@@ -314,6 +313,32 @@ describe('DuelistKingDistributor', function () {
         })
         .join('\n'),
       `\n${txResult.gasUsed.toString()} Gas`,
+    );
+  });
+
+  it('Discount should be calculated correctly', async () => {
+    const {
+      duelistKing: { merchant },
+    } = context;
+
+    const buyBoxes = Math.floor(Math.random() * 255);
+
+    function boxDiscount(noBoxes: number) {
+      if (noBoxes <= 10) return 0;
+      const discount = (Math.floor(noBoxes - 10) / 5) * 2;
+      if (discount >= 30) return 30;
+      return discount;
+    }
+
+    // ALO discount 10%
+    printAllEvents(await merchant.connect(accounts[9]).setDiscount([stringToBytes32('ALO')], [100000]));
+    const basePrice = BigNumber.from('5000000000000000000');
+    // 10% discount code
+    const price = basePrice.sub(basePrice.mul(10).div(100));
+    // 2% box discount
+    const lastPrice = price.sub(price.mul(boxDiscount(buyBoxes)).div(100));
+    expect((await merchant.tokenAmountAfterDiscount(5000000, buyBoxes, stringToBytes32('ALO'), 18)).toString()).to.eq(
+      lastPrice.toString(),
     );
   });
 });
