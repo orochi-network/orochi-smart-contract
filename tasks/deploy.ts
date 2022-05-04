@@ -16,23 +16,22 @@ function getWallet(mnemonic: string, index: number): ethers.Wallet {
 
 async function getConfig(hre: HardhatRuntimeEnvironment): Promise<IConfiguration> {
   const accounts = await hre.ethers.getSigners();
-  /*
   if (hre.network.name === 'binance') {
     return {
       network: hre.network.name,
-      deployerSigner: getWallet(env.DUELIST_KING_DEPLOY_MNEMONIC, 0),
-      salesAgentAddress: '?',
+      deployerSigner: accounts[0],
+      migratorAddresses: [accounts[9].address],
+      salesAgentAddress: '0x74f453DB88C774357579C7500956069cE348fE24',
       infrastructure: {
         operatorAddress: '0xb21B3d626C66E1B932EBc8E124FE3674f7a954b4',
-        oracleAddresses: ['?'],
+        oracleAddresses: ['0x74f453DB88C774357579C7500956069cE348fE24'],
       },
       duelistKing: {
         operatorAddress: '0xb21B3d626C66E1B932EBc8E124FE3674f7a954b4',
-        oracleAddresses: ['?'],
+        oracleAddresses: ['0x74f453DB88C774357579C7500956069cE348fE24'],
       },
     };
   }
-  */
   if (hre.network.name === 'testnet') {
     return {
       network: hre.network.name,

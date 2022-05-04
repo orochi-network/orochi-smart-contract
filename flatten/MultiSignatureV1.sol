@@ -515,7 +515,7 @@ pragma solidity >=0.8.4 <0.9.0;
 // import 'contracts/libraries/MultiSignatureStorage.sol';
 
 /**
- * Orochi Multi Signature Wallet
+ * Orochi Multi Signature Wallet V1
  * Name: N/A
  * Domain: N/A
  */
@@ -589,7 +589,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   function transferRole(address newUser) external onlyUser {
     // New user will be activated after 7 days
     // We prevent them to vote and transfer permission to the other
-    // And vote again
+    // and vote again
     _transferRole(newUser, 7 days);
   }
 
