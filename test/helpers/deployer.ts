@@ -84,6 +84,10 @@ export class Deployer {
     return instanceFactory.attach(contractAddress);
   }
 
+  public async getTheDivineAt(address: string): Promise<Contract> {
+    return this._hre.ethers.getContractAt('ITheDivine', address);
+  }
+
   public getDeployedContract<T>(contractPath: string): T {
     return <any>this._contractCache[contractPath];
   }

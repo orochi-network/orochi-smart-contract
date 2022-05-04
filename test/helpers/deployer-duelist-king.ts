@@ -1,7 +1,15 @@
 import Deployer from './deployer';
 import { registryRecords } from './const';
 import { IConfiguration } from './deployer-infrastructure';
-import { NFT, Registry, RNG, OracleProxy, DuelistKingDistributor, DuelistKingMerchant } from '../../typechain';
+import {
+  NFT,
+  Registry,
+  RNG,
+  OracleProxy,
+  DuelistKingDistributor,
+  DuelistKingMerchant,
+  ITheDivine,
+} from '../../typechain';
 import { printAllEvents } from './functions';
 
 export interface IDeployContext {
@@ -40,10 +48,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
   switch (deployer.getChainId()) {
     case 56:
       console.log('\tLoad existing The Divine contract');
-      theDivineContract = await deployer.contractAttach(
-        'Chiro/ITheDivine',
-        '0xF52a83a3B7d918B66BD9ae117519ddC436A82031',
-      );
+      theDivineContract = <ITheDivine>await deployer.getTheDivineAt('0xF52a83a3B7d918B66BD9ae117519ddC436A82031');
       break;
     default:
       theDivineContract = await deployer.deployTheDivine();
