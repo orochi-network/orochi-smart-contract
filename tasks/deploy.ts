@@ -5,7 +5,7 @@ import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import initInfrastructure, { IConfiguration } from '../test/helpers/deployer-infrastructure';
 import initDuelistKing from '../test/helpers/deployer-duelist-king';
-import { TestToken } from '../typechain';
+import { DuelistKingMerchant, TestToken } from '../typechain';
 
 /*
 import { env } from '../env';
@@ -96,6 +96,62 @@ task('deploy', 'Deploy all smart contracts')
     console.log('Infrastructure Oracles:   ', oracleAddresses.join(','));
     console.log('Duelist King Operator:    ', duelistKing.operatorAddress);
     console.log('Duelist King Oracles:     ', duelistKing.oracleAddresses.join(','));
+  });
+
+task('createCampaign')
+  .addParam('merchant', 'Merchant contract address')
+  .setAction(async (taskArgs: any, hre: HardhatRuntimeEnvironment) => {
+    const merchantAddress = (taskArgs.merchant || '').trim();
+    console.log(hre.network.name);
+
+    const accounts = await hre.ethers.getSigners();
+    console.log(hre.ethers.utils.isAddress(merchantAddress));
+    if (hre.ethers.utils.isAddress(merchantAddress)) {
+      try {
+        const merchant = <DuelistKingMerchant>(
+          await hre.ethers.getContractAt('DuelistKingMerchant', merchantAddress, accounts[0])
+        );
+
+        await merchant.connect(accounts[0]).createNewCampaign({
+          phaseId: 40,
+          basePrice: 5000000,
+          deadline: '1652178668',
+          totalSale: 30000,
+        });
+        console.log('Done');
+        return;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+    throw new Error('File not found or invalid creator address');
+  });
+
+task('merchantAddStableCoin')
+  .addParam('merchant', 'Merchant contract address')
+  .addParam('token', 'StableCoin address')
+  .setAction(async (taskArgs: any, hre: HardhatRuntimeEnvironment) => {
+    const merchantAddress = (taskArgs.merchant || '').trim();
+    const stableCoinAddress = (taskArgs.token || '').trim();
+    console.log(hre.network.name);
+
+    const accounts = await hre.ethers.getSigners();
+    console.log(hre.ethers.utils.isAddress(merchantAddress));
+    console.log(hre.ethers.utils.isAddress(stableCoinAddress));
+    if (hre.ethers.utils.isAddress(merchantAddress) && hre.ethers.utils.isAddress(stableCoinAddress)) {
+      try {
+        const merchant = <DuelistKingMerchant>(
+          await hre.ethers.getContractAt('DuelistKingMerchant', merchantAddress, accounts[0])
+        );
+
+        await merchant.connect(accounts[0]).manageStablecoin(stableCoinAddress, 18, true);
+        console.log('Done');
+        return;
+      } catch (error) {
+        console.log(error);
+      }
+    }
+    throw new Error('File not found or invalid creator address');
   });
 
 export default {};
