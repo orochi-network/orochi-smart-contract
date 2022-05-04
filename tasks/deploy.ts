@@ -20,7 +20,7 @@ async function getConfig(hre: HardhatRuntimeEnvironment): Promise<IConfiguration
     return {
       network: hre.network.name,
       deployerSigner: accounts[0],
-      migratorAddresses: [accounts[9].address],
+      migratorAddresses: ['0x74f453DB88C774357579C7500956069cE348fE24'],
       salesAgentAddress: '0x74f453DB88C774357579C7500956069cE348fE24',
       infrastructure: {
         operatorAddress: '0xb21B3d626C66E1B932EBc8E124FE3674f7a954b4',
