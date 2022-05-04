@@ -994,7 +994,7 @@ contract DuelistKingMerchant is RegistryUser {
     uint256 decimals;
   }
 
-  // Discount are in 1/10^6, e.g: 100,000 = 10%
+  // Discount are in 10^-6, e.g: 100,000 = 10%
   // = 100,000/10^6 = 0.1 * 100% = 10%
   mapping(bytes32 => uint256) private _discount;
 
@@ -1007,14 +1007,21 @@ contract DuelistKingMerchant is RegistryUser {
   // Total campaign
   uint256 private _totalCampaign;
 
+  // Discount rate for boxes
+  // In 10^-6 it's 2%
+  uint256 private _discountRate = 20000;
+
   // New campaign
   event NewCampaign(uint256 indexed phaseId, uint256 indexed totalSale, uint256 indexed basePrice);
 
   // A user buy card from merchant
-  event Purchase(address indexed owner, uint256 indexed phaseId, uint256 indexed numberOfBoxes);
+  event Purchase(address indexed owner, uint256 indexed phaseId, uint256 indexed numberOfBoxes, bytes32 code);
 
   // Update supporting stablecoin
   event UpdateStablecoin(address indexed contractAddress, uint256 indexed decimals, bool isListed);
+
+  // Update new code
+  event UpdateDiscountCode(bytes32 indexed code, uint256 indexed discount);
 
   // Constructor method
   constructor(address registry_, bytes32 domain_) {
@@ -1034,18 +1041,17 @@ contract DuelistKingMerchant is RegistryUser {
     IDistributor distributor = IDistributor(_getAddressSameDomain('Distributor'));
     require(
       distributor.getRemainingBox(newCampaign.phaseId) > newCampaign.totalSale,
-      'Merchant: Invalid number of selling boxes'
+      'ME:Invalid number of selling boxes'
     );
     // We use 10^6 or 6 decimal for fiat value, e.g $4.8 -> 4,800,000
-    require(newCampaign.basePrice > 1000000, 'Merchant: Base price must greater than 1 unit');
-    require(newCampaign.deadline > block.timestamp, 'Merchant: Deadline must be in the future');
+    require(newCampaign.basePrice > 1000000, 'ME:Base price must greater than 1 unit');
+    require(newCampaign.deadline > block.timestamp, 'ME:Deadline must be in the future');
     uint256 currentCampaignId = _totalCampaign;
     _campaign[currentCampaignId] = newCampaign;
     _totalCampaign += 1;
     emit NewCampaign(newCampaign.phaseId, newCampaign.totalSale, newCampaign.basePrice);
     return currentCampaignId;
   }
-
 
   // Create a new supported stable coin
   function manageStablecoin(
@@ -1061,6 +1067,20 @@ contract DuelistKingMerchant is RegistryUser {
     return true;
   }
 
+  // Set discount code
+  function setDiscount(bytes32[] calldata codes, uint256[] calldata discounts)
+    external
+    onlyAllowSameDomain('Sales Agent')
+    returns (bool)
+  {
+    require(codes.length == discounts.length, 'ME:Data mismatch');
+    for (uint256 i = 0; i < codes.length; i += 1) {
+      _discount[codes[i]] = discounts[i];
+      emit UpdateDiscountCode(codes[i], discounts[i]);
+    }
+    return true;
+  }
+
   /*******************************************************
    * Public section
    ********************************************************/
@@ -1072,12 +1092,13 @@ contract DuelistKingMerchant is RegistryUser {
     address tokenAddress,
     bytes32 code
   ) external returns (bool) {
-    require(isSupportedStablecoin(tokenAddress), 'Merchant: Stablecoin was not supported');
+    require(isSupportedStablecoin(tokenAddress), 'ME:Stablecoin was not supported');
     IDistributor distributor = IDistributor(_getAddressSameDomain('Distributor'));
     SaleCampaign memory currentCampaign = _campaign[campaignId];
-    require(block.timestamp < currentCampaign.deadline, 'Merchant: Sale campaign was ended');
+    require(block.timestamp < currentCampaign.deadline, 'ME:Sale campaign was ended');
     uint256 priceInToken = tokenAmountAfterDiscount(
       currentCampaign.basePrice,
+      numberOfBoxes,
       code,
       _stablecoin[tokenAddress].decimals
     );
@@ -1086,13 +1107,18 @@ contract DuelistKingMerchant is RegistryUser {
     // Verify payment
     _tokenTransfer(tokenAddress, msg.sender, address(this), priceInToken * numberOfBoxes);
     distributor.mintBoxes(msg.sender, numberOfBoxes, currentCampaign.phaseId);
-    emit Purchase(msg.sender, currentCampaign.phaseId, numberOfBoxes);
+    emit Purchase(msg.sender, currentCampaign.phaseId, numberOfBoxes, code);
     return true;
   }
 
   /*******************************************************
    * Private section
    ********************************************************/
+
+  // Calculate price after discount
+  function _afterDiscount(uint256 basePrice, uint256 discount) internal pure returns (uint256) {
+    return basePrice - ((basePrice * discount) / 1000000);
+  }
 
   // Transfer token to receiver
   function _tokenTransfer(
@@ -1105,7 +1131,7 @@ contract DuelistKingMerchant is RegistryUser {
     uint256 beforeBalance = token.balanceOf(receiver);
     token.safeTransferFrom(sender, receiver, amount);
     uint256 afterBalance = token.balanceOf(receiver);
-    require(afterBalance - beforeBalance == amount, 'Merchant: Invalid token transfer');
+    require(afterBalance - beforeBalance == amount, 'ME:Invalid token transfer');
     return true;
   }
 
@@ -1123,10 +1149,25 @@ contract DuelistKingMerchant is RegistryUser {
   // tokenPrice = discountedPrice * 10^decimals
   function tokenAmountAfterDiscount(
     uint256 basePrice,
+    uint256 numberOfBoxes,
     bytes32 code,
     uint256 decmials
   ) public view returns (uint256) {
-    return ((basePrice - ((basePrice * _discount[code]) / 1000000)) * 10**decmials) / 1000000;
+    return
+      (_afterDiscount(_afterDiscount(basePrice, boxDiscount(numberOfBoxes)), codeDiscount(code)) * 10**decmials) /
+      1000000;
+  }
+
+  function codeDiscount(bytes32 code) public view returns (uint256) {
+    return _discount[code];
+  }
+
+  function boxDiscount(uint256 numberOfBoxes) public view returns (uint256) {
+    // Prevent integer underflow
+    if (numberOfBoxes <= 10) return 0;
+    uint256 discount = ((numberOfBoxes - 10) / 5) * _discountRate;
+    if (discount >= 300000) return 300000;
+    return discount;
   }
 
   // Get total campaign
