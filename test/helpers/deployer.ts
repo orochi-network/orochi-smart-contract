@@ -63,9 +63,12 @@ export class Deployer {
           libraries: linking,
         });
         this._contractCache[contractPath] = await instanceFactory.deploy(...params);
-        console.log('> Deploying:', contractPath, '\t\t', this._contractCache[contractPath].address);
-        // Make sure transaction will be deployed on Binance Smart Chain
-        await this._contractCache[contractPath].deployTransaction.wait(5);
+        console.log('> Deploying:', contractPath.padEnd(36, ' '), this._contractCache[contractPath].address);
+        if (this.getChainId() == 56) {
+          // Make sure transaction will be deployed on Binance Smart Chain
+          await this._contractCache[contractPath].deployTransaction.wait(5);
+        }
+
         if (/^libraries$/i.test(domain)) {
           this._libraries[contractName] = this._contractCache[contractPath].address;
         }
