@@ -13,6 +13,7 @@ describe('Registry', () => {
       await initInfrastructure(hre, {
         network: hre.network.name,
         deployerSigner: accounts[0],
+        migratorAddresses: [accounts[1].address],
         salesAgentAddress: accounts[9].address,
         infrastructure: {
           operatorAddress: accounts[0].address,

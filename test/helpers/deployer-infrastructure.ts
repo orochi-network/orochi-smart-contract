@@ -11,6 +11,7 @@ export interface IOperators {
 export interface IConfiguration {
   network: string;
   deployerSigner: Signer;
+  migratorAddresses: string[];
   salesAgentAddress: string;
   infrastructure: IOperators;
   duelistKing: IOperators;
