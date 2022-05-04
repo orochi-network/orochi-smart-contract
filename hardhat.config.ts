@@ -62,10 +62,6 @@ const config: HardhatUserConfig = {
     local: {
       url: 'http://localhost:8545/',
       chainId: 911,
-      mining: {
-        auto: false,
-        interval: 500,
-      },
       accounts: {
         mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
         path: "m/44'/60'/0'/0",
@@ -78,10 +74,6 @@ const config: HardhatUserConfig = {
       blockGasLimit: 30000000,
       initialBaseFeePerGas: 0,
       gas: 25000000,
-      mining: {
-        auto: false,
-        interval: 500,
-      },
       accounts: {
         mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
         path: "m/44'/60'/0'/0",

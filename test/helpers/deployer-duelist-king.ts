@@ -1,7 +1,15 @@
 import Deployer from './deployer';
 import { registryRecords } from './const';
 import { IConfiguration } from './deployer-infrastructure';
-import { NFT, Registry, RNG, OracleProxy, DuelistKingDistributor, DuelistKingMerchant } from '../../typechain';
+import {
+  NFT,
+  Registry,
+  RNG,
+  OracleProxy,
+  DuelistKingDistributor,
+  DuelistKingMerchant,
+  ITheDivine,
+} from '../../typechain';
 import { printAllEvents } from './functions';
 
 export interface IDeployContext {
@@ -40,10 +48,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
   switch (deployer.getChainId()) {
     case 56:
       console.log('\tLoad existing The Divine contract');
-      theDivineContract = await deployer.contractAttach(
-        'Chiro/ITheDivine',
-        '0xF52a83a3B7d918B66BD9ae117519ddC436A82031',
-      );
+      theDivineContract = <ITheDivine>await deployer.getTheDivineAt('0xF52a83a3B7d918B66BD9ae117519ddC436A82031');
       break;
     default:
       theDivineContract = await deployer.deployTheDivine();
@@ -141,7 +146,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
       ],
     );
     await printAllEvents(tx);
-    await tx.wait(5);
+    if (deployer.getChainId() === 56) await tx.wait(5);
 
     await printAllEvents(
       await registry.batchSet(
@@ -166,19 +171,19 @@ export default async function init(context: { deployer: Deployer; config: IConfi
     for (let i = 0; i < config.infrastructure.oracleAddresses.length; i += 1) {
       const tx1 = await infrastructureOracleProxy.addController(config.infrastructure.oracleAddresses[i]);
       await printAllEvents(tx1);
-      await tx1.wait(5);
+      if (deployer.getChainId() === 56) await tx1.wait(5);
     }
 
     for (let i = 0; i < config.duelistKing.oracleAddresses.length; i += 1) {
       const tx2 = await duelistKingOracleProxy.addController(config.duelistKing.oracleAddresses[i]);
       await printAllEvents(tx2);
-      await tx2.wait(5);
+      if (deployer.getChainId() === 56) await tx2.wait(5);
     }
 
     for (let i = 0; i < config.migratorAddresses.length; i += 1) {
       const tx3 = await migratorOracleProxy.addController(config.migratorAddresses[i]);
       await printAllEvents(tx3);
-      await tx3.wait(5);
+      if (deployer.getChainId() === 56) await tx3.wait(5);
     }
 
     const tx4 = await registry.batchSet(
@@ -203,7 +208,7 @@ export default async function init(context: { deployer: Deployer; config: IConfi
     );
 
     await printAllEvents(tx4);
-    await tx4.wait(5);
+    if (deployer.getChainId() === 56) await tx4.wait(5);
   });
 
   return {
