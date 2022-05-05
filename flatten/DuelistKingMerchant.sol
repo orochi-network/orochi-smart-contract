@@ -1029,6 +1029,15 @@ contract DuelistKingMerchant is RegistryUser {
   }
 
   /*******************************************************
+   * Operator section
+   ********************************************************/
+  function transfer(address receiver, address tokenAddress) external onlyAllowSameDomain('Operator') returns (bool) {
+    ERC20 token = ERC20(tokenAddress);
+    token.transfer(receiver, token.balanceOf(address(this)));
+    return true;
+  }
+
+  /*******************************************************
    * Sales Agent section
    ********************************************************/
 

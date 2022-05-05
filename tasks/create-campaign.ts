@@ -1,80 +1,94 @@
 /* eslint-disable no-await-in-loop */
 import '@nomiclabs/hardhat-ethers';
+import { Signer } from 'ethers';
 import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import Deployer from '../test/helpers/deployer';
+import { printAllEvents } from '../test/helpers/functions';
 // @ts-ignore
-import { DuelistKingDistributor, OracleProxy } from '../typechain';
+import { DuelistKingMerchant } from '../typechain';
 
-task('campaign', 'Deploy all contract')
-  // .addParam('account', "The account's address")
-  .setAction(async (_taskArgs: any, hre: HardhatRuntimeEnvironment) => {
-    const [, dkOracle1] = await hre.ethers.getSigners();
-
-    if (hre.network.name === 'rinkeby') {
-      const contractDkDistributor = <DuelistKingDistributor>(
-        await hre.ethers.getContractAt('DuelistKingDistributor', '0xEa82668E226E05C6484bF66D294aEBE6Eca09837')
-      );
-
-      const contractOracleProxy = <OracleProxy>(
-        await hre.ethers.getContractAt('OracleProxy', '0x81aF8524AE2f7e7Ed26381dbBfF38203700f8b21')
-      );
-
-      await contractOracleProxy.connect(dkOracle1).safeCall(
-        contractDkDistributor.address,
-        0,
-        contractDkDistributor.interface.encodeFunctionData('newCampaign', [
-          {
-            opened: 0,
-            softCap: 1000000,
-            deadline: 0,
-            generation: 0,
-            start: 0,
-            end: 19,
-            distribution: [
-              '0x00000000000000000000000000000001000000000000000600000000000009c4',
-              '0x000000000000000000000000000000020000000100000005000009c400006b6c',
-              '0x00000000000000000000000000000003000000030000000400006b6c00043bfc',
-              '0x00000000000000000000000000000004000000060000000300043bfc000fadac',
-              '0x000000000000000000000000000000050000000a00000002000fadac0026910c',
-              '0x000000000000000000000000000000050000000f000000010026910c004c4b40',
-            ],
-          },
-        ]),
-      );
-    }
-
-    if (hre.network.name === 'polygon') {
-      const contractDkDistributor = <DuelistKingDistributor>(
-        await hre.ethers.getContractAt('DuelistKingDistributor', '0x58247abEA4192DeB2e25799c93CFacc2B9f84716')
-      );
-
-      const contractOracleProxy = <OracleProxy>(
-        await hre.ethers.getContractAt('OracleProxy', '0x53429d1fABa8b116BD55bC70a8170935Db149eAa')
-      );
-
-      await contractOracleProxy.connect(dkOracle1).safeCall(
-        contractDkDistributor.address,
-        0,
-        contractDkDistributor.interface.encodeFunctionData('newCampaign', [
-          {
-            opened: 0,
-            softCap: 1000000,
-            deadline: 0,
-            generation: 0,
-            start: 0,
-            end: 19,
-            distribution: [
-              '0x00000000000000000000000000000001000000000000000600000000000009c4',
-              '0x000000000000000000000000000000020000000100000005000009c400006b6c',
-              '0x00000000000000000000000000000003000000030000000400006b6c00043bfc',
-              '0x00000000000000000000000000000004000000060000000300043bfc000fadac',
-              '0x000000000000000000000000000000050000000a00000002000fadac0026910c',
-              '0x000000000000000000000000000000050000000f000000010026910c004c4b40',
-            ],
-          },
-        ]),
-      );
-    }
+export async function unlockAddress(hre: HardhatRuntimeEnvironment, address: string): Promise<Signer> {
+  await hre.network.provider.request({
+    method: 'hardhat_impersonateAccount',
+    params: [address],
   });
+  return hre.ethers.provider.getSigner(address);
+}
+
+const tokens = [
+  {
+    blockchain: 'binance',
+    name: 'Binance-Peg BSC-USD',
+    address: '0x55d398326f99059fF775485246999027B3197955',
+    symbol: 'USDT',
+    decimal: 18,
+  },
+  {
+    blockchain: 'binance',
+    name: 'Binance-Peg Dai Token (DAI)',
+    address: '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3',
+    symbol: 'DAI',
+    decimal: 18,
+  },
+  {
+    blockchain: 'binance',
+    name: 'Binance-Peg USD Coin (USDC)',
+    address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+    symbol: 'USDC',
+    decimal: 18,
+  },
+  {
+    blockchain: 'binance',
+    name: 'Binance-Peg BUSD Token (BUSD)',
+    address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+    symbol: 'BUSD',
+    decimal: 18,
+  },
+];
+
+task('campaign:create', 'Create a campaign on BSC for the first time').setAction(
+  async (_taskArgs: any, hre: HardhatRuntimeEnvironment) => {
+    const privateKey = '';
+    const deployer = Deployer.getInstance(hre);
+    const confirmation = hre.network.name === 'binance' ? 5 : 0;
+    const salesAgent =
+      hre.network.name === 'binance'
+        ? new hre.ethers.Wallet(privateKey)
+        : await unlockAddress(hre, '0x74f453DB88C774357579C7500956069cE348fE24');
+    deployer.connect(salesAgent);
+    const merchant = <DuelistKingMerchant>(
+      await deployer.contractAttach('Duelist King/DuelistKingMerchant', '0x54f8fbc961db8c4ECcd946526F648e58E9cC85b0')
+    );
+    // Add support stablecoin
+    for (let i = 0; i < tokens.length; i += 1) {
+      const { address, decimal, symbol } = tokens[i];
+      const tx = await merchant.manageStablecoin(address, decimal, true);
+      console.log('Add stablecoin: ', address, symbol);
+      await printAllEvents(tx);
+      await tx.wait(confirmation);
+    }
+    // Create a new campaign
+
+    const tx = await merchant.createNewCampaign({
+      phaseId: 4,
+      totalSale: 20000,
+      // Deadline is 30 days
+      deadline: (await hre.ethers.provider.getBlock('latest')).timestamp + 2592000,
+      basePrice: 5000000,
+    });
+    await printAllEvents(tx);
+    await tx.wait(confirmation);
+    const { phaseId, totalSale, basePrice, deadline } = await merchant.getCampaignDetail(0);
+    console.table({
+      'Phase Id': phaseId.toNumber(),
+      'Total Sale': totalSale.toNumber(),
+      'Base price': basePrice.toNumber() / 1000000,
+      'Campaign Deadline': `${new Date(deadline.toNumber() * 1000).toISOString()} (end in ${Math.round(
+        Math.ceil(deadline.toNumber() - Date.now() / 1000) / (24 * 60 * 60),
+      )} days)`,
+    });
+  },
+);
 
 export default {};

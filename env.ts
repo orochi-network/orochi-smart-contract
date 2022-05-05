@@ -3,7 +3,6 @@ import { parse } from 'dotenv';
 
 export interface IEnvironment {
   DUELIST_KING_DEPLOY_MNEMONIC: string;
-  DUELIST_KING_ORACLE_MNEMONIC: string;
   DUELIST_KING_RPC: string;
 }
 
