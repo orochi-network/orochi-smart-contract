@@ -320,25 +320,26 @@ describe('DuelistKingDistributor', function () {
     const {
       duelistKing: { merchant },
     } = context;
-
-    const buyBoxes = Math.floor(Math.random() * 255);
-
-    function boxDiscount(noBoxes: number) {
-      if (noBoxes <= 10) return 0;
-      const discount = (Math.floor(noBoxes - 10) / 5) * 2;
-      if (discount >= 30) return 30;
-      return discount;
-    }
-
     // ALO discount 10%
     printAllEvents(await merchant.connect(accounts[9]).setDiscount([stringToBytes32('ALO')], [100000]));
-    const basePrice = BigNumber.from('5000000000000000000');
-    // 10% discount code
-    const price = basePrice.sub(basePrice.mul(10).div(100));
-    // 2% box discount
-    const lastPrice = price.sub(price.mul(boxDiscount(buyBoxes)).div(100));
-    expect((await merchant.tokenAmountAfterDiscount(5000000, buyBoxes, stringToBytes32('ALO'), 18)).toString()).to.eq(
-      lastPrice.toString(),
-    );
+
+    for (let i = 0; i < 255; i += 1) {
+      const buyBoxes = i;
+
+      function boxDiscount(noBoxes: number) {
+        if (noBoxes <= 10) return 0;
+        const discount = Math.floor((noBoxes - 10) / 5) * 2;
+        if (discount >= 30) return 30;
+        return discount;
+      }
+      const basePrice = BigNumber.from('5000000000000000000');
+      // 10% discount code ALO
+      const price = basePrice.sub(basePrice.mul(10).div(100));
+      // 2% box discount
+      const lastPrice = price.sub(price.mul(boxDiscount(buyBoxes)).div(100));
+      expect((await merchant.tokenAmountAfterDiscount(5000000, buyBoxes, stringToBytes32('ALO'), 18)).toString()).to.eq(
+        lastPrice.toString(),
+      );
+    }
   });
 });
