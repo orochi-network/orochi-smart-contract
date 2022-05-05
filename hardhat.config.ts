@@ -19,6 +19,7 @@ if (env.DUELIST_KING_DEPLOY_MNEMONIC !== 'baby nose young alone sport inside gra
   require('./tasks/transfer-native-token');
   require('./tasks/open-boxes');
   require('./tasks/deploy-multi-signature-v1');
+  require('./tasks/create-campaign');
 }
 
 const compilers = ['0.8.7'].map((item: string) => ({
@@ -78,6 +79,11 @@ const config: HardhatUserConfig = {
         mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
         path: "m/44'/60'/0'/0",
       },
+      /* for live test only
+      forking: {
+        url: env.DUELIST_KING_RPC,
+        enabled: true,
+      }, */
     },
   },
   solidity: {
