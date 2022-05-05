@@ -4,6 +4,7 @@ import { parse } from 'dotenv';
 export interface IEnvironment {
   DUELIST_KING_DEPLOY_MNEMONIC: string;
   DUELIST_KING_RPC: string;
+  PRIVATE_KEY: string;
 }
 
 function clean(config: any): any {
