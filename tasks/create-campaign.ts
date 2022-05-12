@@ -5,6 +5,7 @@ import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import Deployer from '../test/helpers/deployer';
 import { printAllEvents } from '../test/helpers/functions';
+import { env } from '../env';
 // @ts-ignore
 import { DuelistKingMerchant } from '../typechain';
 
@@ -49,16 +50,16 @@ const tokens = [
 
 task('campaign:create', 'Create a campaign on BSC for the first time').setAction(
   async (_taskArgs: any, hre: HardhatRuntimeEnvironment) => {
-    const privateKey = '';
+    const privateKey = env.PRIVATE_KEY;
     const deployer = Deployer.getInstance(hre);
     const confirmation = hre.network.name === 'binance' ? 5 : 0;
     const salesAgent =
       hre.network.name === 'binance'
-        ? new hre.ethers.Wallet(privateKey)
+        ? new hre.ethers.Wallet(privateKey, hre.ethers.provider)
         : await unlockAddress(hre, '0x74f453DB88C774357579C7500956069cE348fE24');
     deployer.connect(salesAgent);
     const merchant = <DuelistKingMerchant>(
-      await deployer.contractAttach('Duelist King/DuelistKingMerchant', '0x54f8fbc961db8c4ECcd946526F648e58E9cC85b0')
+      await deployer.contractAttach('Duelist King/DuelistKingMerchant', '0xe0D0FdfF80AE5D9219422E60790545B61F7F5c52')
     );
     // Add support stablecoin
     for (let i = 0; i < tokens.length; i += 1) {

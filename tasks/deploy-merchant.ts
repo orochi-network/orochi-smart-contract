@@ -19,8 +19,8 @@ task('deploy:merchant', 'Deploy all smart contracts')
       registryRecords.domain.duelistKing,
     );
     deployer.printReport();
-    console.log('Domain:', registryRecords.domain.duelistKing);
-    console.log('Domain:', registryRecords.name.merchant);
+    console.log('Domain:\t', registryRecords.domain.duelistKing);
+    console.log('Name:\t', registryRecords.name.merchant);
   });
 
 export default {};
