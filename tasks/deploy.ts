@@ -1,12 +1,16 @@
 /* eslint-disable no-await-in-loop */
+// modifying exports in node_modules\csv-parse\package.json. I switched it from "./sync" to "./lib/sync"
+import { Utilities } from '@dkdao/framework';
 import '@nomiclabs/hardhat-ethers';
+import { parse } from 'csv-parse/lib/sync';
+import fs from 'fs';
 // import { ethers } from 'ethers';
 import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
-import initInfrastructure, { IConfiguration } from '../test/helpers/deployer-infrastructure';
 import initDuelistKing from '../test/helpers/deployer-duelist-king';
-import { DuelistKingMerchant, TestToken } from '../typechain';
+import initInfrastructure, { IConfiguration } from '../test/helpers/deployer-infrastructure';
 import { stringToBytes32 } from '../test/helpers/functions';
+import { DuelistKingMerchant, TestToken } from '../typechain';
 
 /*
 import { env } from '../env';
@@ -153,26 +157,40 @@ task('merchantAddStableCoin')
 
 task('merchantAddDiscountCode')
   .addParam('merchant', 'Merchant contract address')
-  .addParam('code', 'Discount code in string, separated by comma')
-  .addParam('rate', 'Discount percent, separated by comma: eg. 10% 10% = 10,10')
+  // .addParam('code', 'Discount code in string, separated by comma')
+  // .addParam('rate', 'Discount percent, separated by comma: eg. 10% 10% = 10,10')
   .setAction(async (taskArgs: any, hre: HardhatRuntimeEnvironment) => {
     const accounts = await hre.ethers.getSigners();
     const merchantAddress = (taskArgs.merchant || '').trim();
-    const code = (taskArgs.code || '').trim();
-    const rate = (taskArgs.rate || '').trim();
-    const codeArray = code.split(',').map((item: string) => {
-      const codeBytes32 = item.trim();
-      return stringToBytes32(codeBytes32);
-    });
-    const rateArray = rate.split(',').map((item: string) => {
-      const rateDiscount = parseInt(item.trim(), 10) * 10000;
-      if (rateDiscount > 10 ** 6) {
-        throw new Error('Invalid discount rate');
+    const codeArray: string[] = [];
+    const rateArray: string[] = [];
+    // const code = (taskArgs.code || '').trim();
+    // const rate = (taskArgs.rate || '').trim();
+    // const codeArray = code.split(',').map((item: string) => {
+    //   const codeBytes32 = item.trim();
+    //   return stringToBytes32(codeBytes32);
+    // });
+    // const rateArray = rate.split(',').map((item: string) => {
+    //   const rateDiscount = parseInt(item.trim(), 10) * 10000;
+    //   if (rateDiscount > 10 ** 6) {
+    //     throw new Error('Invalid discount rate');
+    //   }
+    //   return rateDiscount.toString();
+    // });
+    const pathFile = `${Utilities.File.getRootFolder()}/assets/discount.csv`;
+
+    if (fs.existsSync(pathFile)) {
+      const dataFile: string[] = parse(fs.readFileSync(pathFile));
+      for (let i = 1; i < dataFile.length; i += 1) {
+        const rate = parseInt(dataFile[i][2].substring(0, 2), 10);
+        codeArray.push(stringToBytes32(dataFile[i][1]));
+        rateArray.push((rate * 10000).toString());
       }
-      return rateDiscount.toString();
-    });
+    }
+
     console.log(codeArray);
     console.log(rateArray);
+
     if (codeArray.length !== rateArray.length) {
       throw new Error('code and rate must be the same length');
     }
