@@ -31,7 +31,7 @@ Infrastructure of DKDAO
 	RecordSet(Duelist King, Operator, 0xCEb82E81743a30419b6131C2284f5580Bac99114)
 	RecordSet(Duelist King, Oracle, 0xFA5F881b6712637629ED0C4b79DaB20C4147f86B)
 	RecordSet(Duelist King, Distributor, 0x57cB34Ac43Aa5b232e46c8b7DFcFe488c80D7259)
-	RecordSet(Duelist King, Merchant, 0x54f8fbc961db8c4ECcd946526F648e58E9cC85b0)
+	RecordSet(Duelist King, Merchant, 0x5c113573dB9E56622473BE713DE990ED4f1EfB81)
 	RecordSet(Duelist King, Sales Agent, 0x74f453DB88C774357579C7500956069cE348fE24)
 	RecordSet(Duelist King, Migrator, 0x3AFe5b5085d08F168741B4C7Fe9B3a58F7FDB1d0)
 	RecordSet(Duelist King, NFT Card, 0xb115a074AE430Ac459c517B826bD227372C01A98)
