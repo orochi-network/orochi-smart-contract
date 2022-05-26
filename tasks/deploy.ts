@@ -6,6 +6,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import initInfrastructure, { IConfiguration } from '../test/helpers/deployer-infrastructure';
 import initDuelistKing from '../test/helpers/deployer-duelist-king';
 import { DuelistKingMerchant, TestToken } from '../typechain';
+import { stringToBytes32 } from '../test/helpers/functions';
 
 /*
 import { env } from '../env';
@@ -114,7 +115,7 @@ task('createCampaign')
         await merchant.connect(accounts[0]).createNewCampaign({
           phaseId: 4,
           basePrice: 5000000,
-          deadline: '1652178668',
+          deadline: '1655001032',
           totalSale: 30000,
         });
         console.log('Done');
@@ -135,8 +136,6 @@ task('merchantAddStableCoin')
     console.log(hre.network.name);
 
     const accounts = await hre.ethers.getSigners();
-    console.log(hre.ethers.utils.isAddress(merchantAddress));
-    console.log(hre.ethers.utils.isAddress(stableCoinAddress));
     if (hre.ethers.utils.isAddress(merchantAddress) && hre.ethers.utils.isAddress(stableCoinAddress)) {
       try {
         const merchant = <DuelistKingMerchant>(
@@ -144,13 +143,53 @@ task('merchantAddStableCoin')
         );
 
         await merchant.connect(accounts[0]).manageStablecoin(stableCoinAddress, 18, true);
-        console.log('Done');
-        return;
+        return console.log('Done');
       } catch (error) {
         console.log(error);
       }
     }
     throw new Error('File not found or invalid creator address');
+  });
+
+task('merchantAddDiscountCode')
+  .addParam('merchant', 'Merchant contract address')
+  .addParam('code', 'Discount code in string, separated by comma')
+  .addParam('rate', 'Discount percent, separated by comma: eg. 10% 10% = 10,10')
+  .setAction(async (taskArgs: any, hre: HardhatRuntimeEnvironment) => {
+    const accounts = await hre.ethers.getSigners();
+    const merchantAddress = (taskArgs.merchant || '').trim();
+    const code = (taskArgs.code || '').trim();
+    const rate = (taskArgs.rate || '').trim();
+    const codeArray = code.split(',').map((item: string) => {
+      const codeBytes32 = item.trim();
+      return stringToBytes32(codeBytes32);
+    });
+    const rateArray = rate.split(',').map((item: string) => {
+      const rateDiscount = parseInt(item.trim(), 10) * 10000;
+      if (rateDiscount > 10 ** 6) {
+        throw new Error('Invalid discount rate');
+      }
+      return rateDiscount.toString();
+    });
+    console.log(codeArray);
+    console.log(rateArray);
+    if (codeArray.length !== rateArray.length) {
+      throw new Error('code and rate must be the same length');
+    }
+
+    if (hre.ethers.utils.isAddress(merchantAddress)) {
+      try {
+        const merchant = <DuelistKingMerchant>(
+          await hre.ethers.getContractAt('DuelistKingMerchant', merchantAddress, accounts[0])
+        );
+
+        await merchant.connect(accounts[0]).setDiscount(codeArray, rateArray);
+        return console.log('Done');
+      } catch (error) {
+        return console.log(error);
+      }
+    }
+    throw new Error('Invalid merchant address');
   });
 
 export default {};
