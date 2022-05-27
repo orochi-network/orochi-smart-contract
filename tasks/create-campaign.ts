@@ -59,7 +59,7 @@ task('campaign:create', 'Create a campaign on BSC for the first time').setAction
         : await unlockAddress(hre, '0x74f453DB88C774357579C7500956069cE348fE24');
     deployer.connect(salesAgent);
     const merchant = <DuelistKingMerchant>(
-      await deployer.contractAttach('Duelist King/DuelistKingMerchant', '0xe0D0FdfF80AE5D9219422E60790545B61F7F5c52')
+      await deployer.contractAttach('Duelist King/DuelistKingMerchant', '0x5c113573dB9E56622473BE713DE990ED4f1EfB81')
     );
     // Add support stablecoin
     for (let i = 0; i < tokens.length; i += 1) {

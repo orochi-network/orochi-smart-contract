@@ -2,7 +2,6 @@ import { Signer, Contract } from 'ethers';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { Registry } from '../../typechain';
 import { stringToBytes32, zeroAddress } from './const';
-import { printAllEvents } from './functions';
 import { Singleton } from './singleton';
 
 export class Deployer {
