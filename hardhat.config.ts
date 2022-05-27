@@ -28,6 +28,14 @@ const compilers = ['0.8.7'].map((item: string) => ({
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
+    polygon: {
+      url: env.DUELIST_KING_RPC,
+      chainId: 137,
+      accounts: {
+        mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
+        path: "m/44'/60'/0'/0",
+      },
+    },
     fantom: {
       url: env.DUELIST_KING_RPC,
       chainId: 250,
