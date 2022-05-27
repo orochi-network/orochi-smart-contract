@@ -1,4 +1,5 @@
 /* eslint-disable global-require */
+import { opendirSync } from 'fs';
 import { HardhatUserConfig } from 'hardhat/types';
 import { env } from './env';
 import 'hardhat-typechain';
@@ -7,20 +8,11 @@ import 'hardhat-gas-reporter';
 import 'solidity-coverage';
 
 if (env.DUELIST_KING_DEPLOY_MNEMONIC !== 'baby nose young alone sport inside grain rather undo donor void exotic') {
-  require('./tasks/deploy-migration-contract');
-  require('./tasks/print-account');
-  require('./tasks/deploy');
-  require('./tasks/deploy-token');
-  require('./tasks/deploy-timelock');
-  require('./tasks/deploy-staking-contract');
-  require('./tasks/deploy-vesting-creator');
-  require('./tasks/create-vesting-contract');
-  require('./tasks/transfer-token');
-  require('./tasks/transfer-native-token');
-  require('./tasks/open-boxes');
-  require('./tasks/deploy-multi-signature-v1');
-  require('./tasks/create-campaign');
-  require('./tasks/deploy-merchant');
+  const dir = opendirSync(`${__dirname}/tasks`);
+  for (let entry = dir.readSync(); entry !== null; entry = dir.readSync()) {
+    // eslint-disable-next-line import/no-dynamic-require
+    require(`./tasks/${entry.name.replace(/\.ts$/gi, '')}`);
+  }
 }
 
 const compilers = ['0.8.7'].map((item: string) => ({
@@ -80,11 +72,12 @@ const config: HardhatUserConfig = {
         mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
         path: "m/44'/60'/0'/0",
       },
-      /* for live test only
-      forking: {
-        url: env.DUELIST_KING_RPC,
-        enabled: true,
-      }, */
+      forking: env.DUELIST_KING_FORK
+        ? {
+            url: env.DUELIST_KING_RPC,
+            enabled: true,
+          }
+        : undefined,
     },
   },
   solidity: {

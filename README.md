@@ -50,7 +50,7 @@ Infrastructure of DKDAO
 	Duelist King/DuelistKingDistributor:             0x57cB34Ac43Aa5b232e46c8b7DFcFe488c80D7259
 	Duelist King Card/NFT:                           0xb115a074AE430Ac459c517B826bD227372C01A98
 	Duelist King Item/NFT:                           0xe2f0c8f0F80D3a1f0a66Eb3ab229c4f63CCd11d0
-	Duelist King/DuelistKingMerchant:                0x54f8fbc961db8c4ECcd946526F648e58E9cC85b0
+	Duelist King/DuelistKingMerchant:                0x5c113573dB9E56622473BE713DE990ED4f1EfB81
 [End of Report for network: binance] -------------------------------------------------
 Sales Agent:   0x74f453DB88C774357579C7500956069cE348fE24
 Migrator:   0x74f453DB88C774357579C7500956069cE348fE24
