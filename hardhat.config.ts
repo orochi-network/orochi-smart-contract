@@ -10,8 +10,10 @@ import 'solidity-coverage';
 if (env.DUELIST_KING_DEPLOY_MNEMONIC !== 'baby nose young alone sport inside grain rather undo donor void exotic') {
   const dir = opendirSync(`${__dirname}/tasks`);
   for (let entry = dir.readSync(); entry !== null; entry = dir.readSync()) {
-    // eslint-disable-next-line import/no-dynamic-require
-    require(`./tasks/${entry.name.replace(/\.ts$/gi, '')}`);
+    if (entry.name.toLowerCase().includes('.ts')) {
+      // eslint-disable-next-line import/no-dynamic-require
+      require(`./tasks/${entry.name.replace(/\.ts$/gi, '')}`);
+    }
   }
 }
 
