@@ -119,7 +119,7 @@ export async function printAllEvents(tx: ContractTransaction) {
   );
 }
 
-export async function craftProof(oracleSigner: SignerWithAddress, oracle: OracleProxy): Promise<Buffer> {
+export async function craftProof(oracleSigner: SignerWithAddress | Signer, oracle: OracleProxy): Promise<Buffer> {
   let message = bigNumberToBytes32(await oracle.getValidTimeNonce(60000, getUint128Random()));
   // Make sure that it matched
   let signedProof = await oracleSigner.signMessage(utils.arrayify(message));

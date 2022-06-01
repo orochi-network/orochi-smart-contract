@@ -5,7 +5,6 @@ import { Signer } from 'ethers';
 import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import Deployer from '../test/helpers/deployer';
-import { printAllEvents } from '../test/helpers/functions';
 import { env } from '../env';
 // @ts-ignore
 import { DuelistKingMerchant } from '../typechain';
