@@ -10,12 +10,31 @@ task('deploy:migration', 'Deploy migration contract').setAction(
     const deployer: Deployer = Deployer.getInstance(hre);
     // We assume that accounts[0] is infrastructure operator
     deployer.connect(accounts[0]);
-    await deployer.contractDeploy(
-      'Duelist King/DuelistKingMigration',
-      [],
-      '0xE1f03feAFB6107E82191CdB46f270c2ce962eC4e',
-      '0x8BD47c687d0D3299a71f2f9Cd9D216C2Df1271d3',
-    );
+    if (hre.network.name === 'fantom') {
+      await deployer.contractDeploy(
+        'Duelist King/DuelistKingMigration',
+        [],
+        '0xC44b1022f4895F3C04e965f8A82437a8B5cebB70',
+        '0x6c375585A31718c38D4E3eb3eddbfb203f142834',
+      );
+    }
+    if (hre.network.name === 'polygon') {
+      await deployer.contractDeploy(
+        'Duelist King/DuelistKingMigration',
+        [],
+        '0xb5c01956842cE3a658109776215F86CA4FeE2CBc',
+        '0x0000000000000000000000000000000000000000',
+      );
+    }
+    if (hre.network.name === 'hardhat') {
+      await deployer.contractDeploy(
+        'Duelist King/DuelistKingMigration',
+        [],
+        '0x0000000000000000000000000000000000000000',
+        '0x0000000000000000000000000000000000000000',
+      );
+    }
+    console.log('Deployer:', accounts[0].address);
     deployer.printReport();
   },
 );
