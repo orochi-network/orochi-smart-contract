@@ -119,7 +119,7 @@ task('createCampaign')
         await merchant.connect(accounts[0]).createNewCampaign({
           phaseId: 4,
           basePrice: 5000000,
-          deadline: '1655001032',
+          deadline: '1687400344',
           totalSale: 30000,
         });
         console.log('Done');
