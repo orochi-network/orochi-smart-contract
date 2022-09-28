@@ -1,7 +1,7 @@
 // Dependency file: @openzeppelin/contracts/utils/Address.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (utils/Address.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
 
 // pragma solidity ^0.8.1;
 
@@ -211,7 +211,7 @@ library Address {
             // Look for revert reason and bubble it up if present
             if (returndata.length > 0) {
                 // The easiest way to bubble the revert reason is using memory via assembly
-
+                /// @solidity memory-safe-assembly
                 assembly {
                     let returndata_size := mload(returndata)
                     revert(add(32, returndata), returndata_size)
@@ -496,11 +496,11 @@ contract MultiSignatureStorage {
   // Total number of signer
   uint256 internal _totalSigner = 0;
 
-  // Threshold for a proposal to be passed, it' usual 50%
-  int256 internal _threshold;
+  // Threshold for a proposal to be passed
+  uint256 internal _threshold;
 
-  // Threshold for all participants to be drag a long, it's usual 70%
-  int256 internal _thresholdDrag;
+  // Threshold for all participants to be drag a long
+  uint256 internal _thresholdDrag;
 }
 
 
@@ -508,7 +508,7 @@ contract MultiSignatureStorage {
 
 pragma solidity >=0.8.4 <0.9.0;
 
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/utils/Address.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/utils/Address.sol';
 // import 'contracts/libraries/Verifier.sol';
 // import 'contracts/libraries/Bytes.sol';
 // import 'contracts/libraries/Permissioned.sol';
@@ -566,8 +566,8 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   function init(
     address[] memory users_,
     uint256[] memory roles_,
-    int256 threshold_,
-    int256 thresholdDrag_
+    uint256 threshold_,
+    uint256 thresholdDrag_
   ) external {
     require(_init(users_, roles_) > 0, 'S: Unable to init contract');
     uint256 totalSinger = 0;
@@ -612,7 +612,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
         totalSigned += 1;
       }
     }
-    require(_calculatePercent(int256(totalSigned)) >= _thresholdDrag, 'S: Drag threshold was not passed');
+    require(totalSigned >= _thresholdDrag, 'S: Drag threshold was not passed');
     uint256 packagedNonce = txData.readUint256(0);
     address target = txData.readAddress(32);
     uint256 value = txData.readUint256(52);
@@ -674,11 +674,10 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   function execute(uint256 proposalId) external onlyAllow(PERMISSION_EXECUTE) returns (bool) {
     Proposal memory currentProposal = _proposalStorage[proposalId];
     require(currentProposal.executed == false, 'S: Proposal was executed');
-    int256 voting = _calculatePercent(currentProposal.vote);
-    // If positiveVoted < 70%, It need to pass 50% and expired
-    if (voting < int256(_thresholdDrag)) {
+    // If positiveVoted < drag threshold, It need to pass minimal threshold and expired
+    if (currentProposal.vote < int256(_thresholdDrag)) {
       require(block.timestamp > _proposalStorage[proposalId].expired, "S: Voting period wasn't over");
-      require(voting >= 50, 'S: Vote was not pass 50%');
+      require(currentProposal.vote >= int256(_threshold), 'S: Vote was not pass threshold');
     }
 
     if (currentProposal.target.isContract()) {
@@ -721,10 +720,6 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
       }
     }
     return true;
-  }
-
-  function _calculatePercent(int256 votedUsers) private view returns (int256) {
-    return (votedUsers * 10000) / int256(_totalSigner * 100);
   }
 
   /*******************************************************

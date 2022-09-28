@@ -1,7 +1,7 @@
 // Dependency file: @openzeppelin/contracts/proxy/Clones.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (proxy/Clones.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (proxy/Clones.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -25,6 +25,7 @@ library Clones {
      * This function uses the create opcode, which should never revert.
      */
     function clone(address implementation) internal returns (address instance) {
+        /// @solidity memory-safe-assembly
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
@@ -43,6 +44,7 @@ library Clones {
      * the clones cannot be deployed twice at the same address.
      */
     function cloneDeterministic(address implementation, bytes32 salt) internal returns (address instance) {
+        /// @solidity memory-safe-assembly
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
@@ -61,6 +63,7 @@ library Clones {
         bytes32 salt,
         address deployer
     ) internal pure returns (address predicted) {
+        /// @solidity memory-safe-assembly
         assembly {
             let ptr := mload(0x40)
             mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
@@ -234,7 +237,7 @@ abstract contract RegistryUser {
 
 pragma solidity >=0.8.4 <0.9.0;
 
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/proxy/Clones.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/proxy/Clones.sol';
 // import 'contracts/interfaces/IPool.sol';
 // import 'contracts/interfaces/IDAO.sol';
 // import 'contracts/interfaces/IDAOToken.sol';

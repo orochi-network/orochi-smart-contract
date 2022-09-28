@@ -28,7 +28,7 @@ abstract contract Context {
 
 // Dependency file: @openzeppelin/contracts/access/Ownable.sol
 
-// OpenZeppelin Contracts v4.4.1 (access/Ownable.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -59,6 +59,14 @@ abstract contract Ownable is Context {
     }
 
     /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+    /**
      * @dev Returns the address of the current owner.
      */
     function owner() public view virtual returns (address) {
@@ -66,11 +74,10 @@ abstract contract Ownable is Context {
     }
 
     /**
-     * @dev Throws if called by any account other than the owner.
+     * @dev Throws if the sender is not the owner.
      */
-    modifier onlyOwner() {
+    function _checkOwner() internal view virtual {
         require(owner() == _msgSender(), "Ownable: caller is not the owner");
-        _;
     }
 
     /**
@@ -135,7 +142,7 @@ interface IERC165 {
 
 // Dependency file: @openzeppelin/contracts/token/ERC721/IERC721.sol
 
-// OpenZeppelin Contracts v4.4.1 (token/ERC721/IERC721.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (token/ERC721/IERC721.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -175,6 +182,26 @@ interface IERC721 is IERC165 {
     function ownerOf(uint256 tokenId) external view returns (address owner);
 
     /**
+     * @dev Safely transfers `tokenId` token from `from` to `to`.
+     *
+     * Requirements:
+     *
+     * - `from` cannot be the zero address.
+     * - `to` cannot be the zero address.
+     * - `tokenId` token must exist and be owned by `from`.
+     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
+     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
+     *
+     * Emits a {Transfer} event.
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes calldata data
+    ) external;
+
+    /**
      * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
      * are aware of the ERC721 protocol to prevent tokens from being forever locked.
      *
@@ -183,7 +210,7 @@ interface IERC721 is IERC165 {
      * - `from` cannot be the zero address.
      * - `to` cannot be the zero address.
      * - `tokenId` token must exist and be owned by `from`.
-     * - If the caller is not `from`, it must be have been allowed to move this token by either {approve} or {setApprovalForAll}.
+     * - If the caller is not `from`, it must have been allowed to move this token by either {approve} or {setApprovalForAll}.
      * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
      *
      * Emits a {Transfer} event.
@@ -230,15 +257,6 @@ interface IERC721 is IERC165 {
     function approve(address to, uint256 tokenId) external;
 
     /**
-     * @dev Returns the account approved for `tokenId` token.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     */
-    function getApproved(uint256 tokenId) external view returns (address operator);
-
-    /**
      * @dev Approve or remove `operator` as an operator for the caller.
      * Operators can call {transferFrom} or {safeTransferFrom} for any token owned by the caller.
      *
@@ -251,31 +269,20 @@ interface IERC721 is IERC165 {
     function setApprovalForAll(address operator, bool _approved) external;
 
     /**
+     * @dev Returns the account approved for `tokenId` token.
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
+     */
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    /**
      * @dev Returns if the `operator` is allowed to manage all of the assets of `owner`.
      *
      * See {setApprovalForAll}
      */
     function isApprovedForAll(address owner, address operator) external view returns (bool);
-
-    /**
-     * @dev Safely transfers `tokenId` token from `from` to `to`.
-     *
-     * Requirements:
-     *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must exist and be owned by `from`.
-     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
-     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-     *
-     * Emits a {Transfer} event.
-     */
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes calldata data
-    ) external;
 }
 
 
@@ -283,8 +290,8 @@ interface IERC721 is IERC165 {
 
 pragma solidity >=0.8.4 <0.9.0;
 
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/access/Ownable.sol';
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/access/Ownable.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 contract DuelistKingMigration is Ownable {
   IERC721 immutable nftCard;

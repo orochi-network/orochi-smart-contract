@@ -1,7 +1,7 @@
 // Dependency file: @openzeppelin/contracts/utils/Address.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (utils/Address.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
 
 // pragma solidity ^0.8.1;
 
@@ -211,7 +211,7 @@ library Address {
             // Look for revert reason and bubble it up if present
             if (returndata.length > 0) {
                 // The easiest way to bubble the revert reason is using memory via assembly
-
+                /// @solidity memory-safe-assembly
                 assembly {
                     let returndata_size := mload(returndata)
                     revert(add(32, returndata), returndata_size)
@@ -461,7 +461,7 @@ abstract contract RegistryUser {
 
 pragma solidity >=0.8.4 <0.9.0;
 
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/utils/Address.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/utils/Address.sol';
 // import 'contracts/libraries/Verifier.sol';
 // import 'contracts/libraries/Bytes.sol';
 // import 'contracts/libraries/RegistryUser.sol';
