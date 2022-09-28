@@ -60,10 +60,12 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   function init(
     address[] memory users_,
     uint256[] memory roles_,
-    int256 threshold_,
-    int256 thresholdDrag_
+    uint256 threshold_,
+    uint256 thresholdDrag_
   ) external {
     require(_init(users_, roles_) > 0, 'S: Unable to init contract');
+    require(thresholdDrag_ <= users_.length, 'S: Drag threshold is too big');
+    require(threshold_ <= thresholdDrag_, 'S: Threshold is bigger than drag threshold');
     uint256 totalSinger = 0;
     for (uint256 i = 0; i < users_.length; i += 1) {
       if (roles_[i] & PERMISSION_VOTE > 0) {
@@ -106,7 +108,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
         totalSigned += 1;
       }
     }
-    require(_calculatePercent(int256(totalSigned)) >= _thresholdDrag, 'S: Drag threshold was not passed');
+    require(totalSigned >= _thresholdDrag, 'S: Drag threshold was not passed');
     uint256 packagedNonce = txData.readUint256(0);
     address target = txData.readAddress(32);
     uint256 value = txData.readUint256(52);
@@ -168,11 +170,10 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   function execute(uint256 proposalId) external onlyAllow(PERMISSION_EXECUTE) returns (bool) {
     Proposal memory currentProposal = _proposalStorage[proposalId];
     require(currentProposal.executed == false, 'S: Proposal was executed');
-    int256 voting = _calculatePercent(currentProposal.vote);
-    // If positiveVoted < 70%, It need to pass 50% and expired
-    if (voting < int256(_thresholdDrag)) {
+    // If positiveVoted < drag threshold, It need to pass minimal threshold and expired
+    if (currentProposal.vote < int256(_thresholdDrag)) {
       require(block.timestamp > _proposalStorage[proposalId].expired, "S: Voting period wasn't over");
-      require(voting >= 50, 'S: Vote was not pass 50%');
+      require(currentProposal.vote >= int256(_threshold), 'S: Vote was not pass threshold');
     }
 
     if (currentProposal.target.isContract()) {
@@ -215,10 +216,6 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
       }
     }
     return true;
-  }
-
-  function _calculatePercent(int256 votedUsers) private view returns (int256) {
-    return (votedUsers * 10000) / int256(_totalSigner * 100);
   }
 
   /*******************************************************

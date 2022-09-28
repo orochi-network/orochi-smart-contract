@@ -1,6 +1,6 @@
 import hre from 'hardhat';
 import chai, { expect } from 'chai';
-import { TestToken, MultiSig, MultiSignatureV1 } from '../typechain';
+import { TestToken, MultiSignatureV1 } from '../typechain';
 import { utils, BigNumber, ethers } from 'ethers';
 import { solidity } from 'ethereum-waffle';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -71,8 +71,8 @@ describe('MultiSignatureV1', function () {
       await contractMultiSig.init(
         [creator, voter, executor, viewer, admin1, admin2, admin3].map((e) => e.address),
         [ROLE_CREATOR, ROLE_VOTER, ROLE_EXECUTOR, ROLE_VIEWER, ROLE_ADMIN, ROLE_ADMIN, ROLE_ADMIN],
-        50,
-        70,
+        2,
+        3,
       ),
     );
 
@@ -85,8 +85,8 @@ describe('MultiSignatureV1', function () {
         contractMultiSig.connect(deployerSigner).init(
           [creator, voter, executor, viewer, admin1, admin2, admin3].map((e) => e.address),
           [ROLE_CREATOR, ROLE_VOTER, ROLE_EXECUTOR, ROLE_VIEWER, ROLE_ADMIN, ROLE_ADMIN, ROLE_ADMIN],
-          50,
-          70,
+          2,
+          3,
         ),
       ),
     ).to.eq(true);

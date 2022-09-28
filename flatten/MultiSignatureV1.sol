@@ -570,6 +570,8 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
     uint256 thresholdDrag_
   ) external {
     require(_init(users_, roles_) > 0, 'S: Unable to init contract');
+    require(thresholdDrag_ <= users_.length, 'S: Drag threshold is too big');
+    require(threshold_ <= thresholdDrag_, 'S: Threshold is bigger than drag threshold');
     uint256 totalSinger = 0;
     for (uint256 i = 0; i < users_.length; i += 1) {
       if (roles_[i] & PERMISSION_VOTE > 0) {
