@@ -34,9 +34,9 @@ contract MultiSignatureStorage {
   // Total number of signer
   uint256 internal _totalSigner = 0;
 
-  // Threshold for a proposal to be passed, it' usual 50%
-  int256 internal _threshold;
+  // Threshold for a proposal to be passed
+  uint256 internal _threshold;
 
-  // Threshold for all participants to be drag a long, it's usual 70%
-  int256 internal _thresholdDrag;
+  // Threshold for all participants to be drag a long
+  uint256 internal _thresholdDrag;
 }

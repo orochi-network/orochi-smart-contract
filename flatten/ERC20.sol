@@ -1,7 +1,7 @@
 // Dependency file: @openzeppelin/contracts/token/ERC20/IERC20.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.5.0) (token/ERC20/IERC20.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
 
 // pragma solidity ^0.8.0;
 
@@ -9,6 +9,20 @@
  * @dev Interface of the ERC20 standard as defined in the EIP.
  */
 interface IERC20 {
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
     /**
      * @dev Returns the amount of tokens in existence.
      */
@@ -67,20 +81,6 @@ interface IERC20 {
         address to,
         uint256 amount
     ) external returns (bool);
-
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 
@@ -147,9 +147,9 @@ abstract contract Context {
 
 pragma solidity ^0.8.0;
 
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol';
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
-// import '/Users/chiro/GitHub/infrastructure/node_modules/@openzeppelin/contracts/utils/Context.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
+// import '/Users/chiro/GitHub/orochi-smart-contract/node_modules/@openzeppelin/contracts/utils/Context.sol';
 
 /**
  * @dev Implementation of the {IERC20} interface.
