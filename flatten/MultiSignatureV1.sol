@@ -568,7 +568,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
     uint256[] memory roles_,
     uint256 threshold_,
     uint256 thresholdDrag_
-  ) external {
+  ) external returns (bool) {
     require(_init(users_, roles_) > 0, 'S: Unable to init contract');
     require(thresholdDrag_ <= users_.length, 'S: Drag threshold is too big');
     require(threshold_ <= thresholdDrag_, 'S: Threshold is bigger than drag threshold');
@@ -582,6 +582,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
     _threshold = threshold_;
     _thresholdDrag = thresholdDrag_;
     _totalSigner = totalSinger;
+    return true;
   }
 
   /*******************************************************

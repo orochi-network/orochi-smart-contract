@@ -6,7 +6,7 @@ interface IMultiSignature {
   function init(
     address[] memory users_,
     uint256[] memory roles_,
-    int256 threshold_,
-    int256 thresholdDrag_
+    uint256 threshold_,
+    uint256 thresholdDrag_
   ) external returns (bool);
 }

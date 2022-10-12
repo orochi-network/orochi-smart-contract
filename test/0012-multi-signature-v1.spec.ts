@@ -1,6 +1,6 @@
 import hre from 'hardhat';
 import chai, { expect } from 'chai';
-import { TestToken, MultiSignatureV1 } from '../typechain';
+import { TestToken, MultiSignatureV1, MultiSignatureMaster } from '../typechain';
 import { utils, BigNumber, ethers } from 'ethers';
 import { solidity } from 'ethereum-waffle';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -17,15 +17,15 @@ const PERMISSION_VOTE = 2;
 // Permission to execute the proposal
 const PERMISSION_EXECUTE = 4;
 // View permission only
-const PERMISSION_OBSERVER = 4294967296;
+const PERMISSION_OBSERVER = '0x100000000';
 
-const uint = '1000000000000000000';
+const unit = '1000000000000000000';
 
-const ROLE_CREATOR = PERMISSION_CREATE;
-const ROLE_VOTER = PERMISSION_VOTE;
-const ROLE_EXECUTOR = PERMISSION_EXECUTE;
+const ROLE_CREATOR = `0x10000000${PERMISSION_CREATE}`;
+const ROLE_VOTER = `0x10000000${PERMISSION_VOTE}`;
+const ROLE_EXECUTOR = `0x10000000${PERMISSION_EXECUTE}`;
 const ROLE_VIEWER = PERMISSION_OBSERVER;
-const ROLE_ADMIN = PERMISSION_CREATE | PERMISSION_EXECUTE | PERMISSION_OBSERVER | PERMISSION_VOTE;
+const ROLE_ADMIN = `0x10000000${PERMISSION_CREATE | PERMISSION_EXECUTE | PERMISSION_VOTE}`;
 
 async function timeTravel(secs: number) {
   await hre.network.provider.request({
@@ -46,7 +46,11 @@ async function shouldFailed(asyncFunction: () => Promise<any>): Promise<boolean>
   return error;
 }
 
-let accounts: SignerWithAddress[], contractMultiSig: MultiSignatureV1, contractTestToken: TestToken;
+let accounts: SignerWithAddress[],
+  contractMultiSig: MultiSignatureV1,
+  cloneMultiSig: MultiSignatureV1,
+  contractTestToken: TestToken,
+  contractMultiSigMaster: MultiSignatureMaster;
 let deployerSigner: SignerWithAddress,
   creator: SignerWithAddress,
   voter: SignerWithAddress,
@@ -65,7 +69,7 @@ describe('MultiSignatureV1', function () {
     contractTestToken = <TestToken>await deployer.contractDeploy('test/TestToken', []);
     contractMultiSig = <MultiSignatureV1>await deployer.contractDeploy('test/MultiSignatureV1', []);
 
-    await contractTestToken.transfer(contractMultiSig.address, BigNumber.from(10000).mul(uint));
+    await contractTestToken.transfer(contractMultiSig.address, BigNumber.from(10000).mul(unit));
 
     printAllEvents(
       await contractMultiSig.init(
@@ -77,6 +81,53 @@ describe('MultiSignatureV1', function () {
     );
 
     expect((await contractMultiSig.getTotalSigner()).toNumber()).to.eq(4);
+  });
+
+  it('should able to deploy multisig master correctly', async () => {
+    const deployer: Deployer = Deployer.getInstance(hre);
+    contractMultiSigMaster = <MultiSignatureMaster>(
+      await deployer.contractDeploy(
+        'test/MultiSignatureMaster',
+        [],
+        [deployerSigner.address, deployerSigner.address],
+        [1, 2],
+        contractMultiSig.address,
+        0,
+      )
+    );
+  });
+
+  it('anyone could able to create new signature from multi signature master', async () => {
+    const deployer: Deployer = Deployer.getInstance(hre);
+    printAllEvents(
+      await contractMultiSigMaster.createWallet(1, [admin1.address, admin2.address], [ROLE_ADMIN, ROLE_ADMIN], 1, 2),
+    );
+
+    cloneMultiSig = <MultiSignatureV1>(
+      await deployer.contractAttach(
+        'test/MultiSignatureV1',
+        await contractMultiSigMaster.predictWalletAddress(deployerSigner.address, 1),
+      )
+    );
+  });
+
+  it('admin should able to perform quick transfer with ', async () => {
+    await deployerSigner.sendTransaction({
+      to: cloneMultiSig.address,
+      value: BigNumber.from(5).mul(unit),
+    });
+    const beforeValue = await admin1.getBalance();
+    const tx = await contractMultiSig.getPackedTransaction(admin1.address, BigNumber.from(1).mul(unit), '0x');
+    printAllEvents(
+      await cloneMultiSig
+        .connect(admin2)
+        .quickTransfer(
+          [await admin1.signMessage(utils.arrayify(tx)), await admin2.signMessage(utils.arrayify(tx))],
+          tx,
+        ),
+    );
+    const afterBalance = await admin1.getBalance();
+    expect(afterBalance.sub(beforeValue).div(unit)).to.eq(1);
   });
 
   it('init() can not able to be called twice', async () => {
@@ -102,7 +153,7 @@ describe('MultiSignatureV1', function () {
           0,
           contractTestToken.interface.encodeFunctionData('transfer', [
             accounts[9].address,
-            BigNumber.from(100).mul(uint),
+            BigNumber.from(100).mul(unit),
           ]),
         ),
     );
@@ -119,7 +170,7 @@ describe('MultiSignatureV1', function () {
             0,
             contractTestToken.interface.encodeFunctionData('transfer', [
               accounts[9].address,
-              BigNumber.from(100).mul(uint),
+              BigNumber.from(100).mul(unit),
             ]),
           ),
       ),
@@ -134,7 +185,7 @@ describe('MultiSignatureV1', function () {
             0,
             contractTestToken.interface.encodeFunctionData('transfer', [
               accounts[9].address,
-              BigNumber.from(100).mul(uint),
+              BigNumber.from(100).mul(unit),
             ]),
           ),
       ),
@@ -149,7 +200,7 @@ describe('MultiSignatureV1', function () {
             0,
             contractTestToken.interface.encodeFunctionData('transfer', [
               accounts[9].address,
-              BigNumber.from(100).mul(uint),
+              BigNumber.from(100).mul(unit),
             ]),
           ),
       ),
@@ -164,7 +215,7 @@ describe('MultiSignatureV1', function () {
             0,
             contractTestToken.interface.encodeFunctionData('transfer', [
               accounts[9].address,
-              BigNumber.from(100).mul(uint),
+              BigNumber.from(100).mul(unit),
             ]),
           ),
       ),
@@ -197,14 +248,14 @@ describe('MultiSignatureV1', function () {
     await contractMultiSig.connect(admin1).votePositive(0);
     await timeTravel(dayToSec(2));
     await contractMultiSig.connect(admin2).execute(0);
-    expect((await contractTestToken.balanceOf(accounts[9].address)).div(uint)).to.eq(100);
+    expect((await contractTestToken.balanceOf(accounts[9].address)).div(unit)).to.eq(100);
   });
 
   it('Creator able to perform quick transfer', async () => {
     const tx = await contractMultiSig.getPackedTransaction(
       contractTestToken.address,
       0,
-      contractTestToken.interface.encodeFunctionData('transfer', [accounts[8].address, BigNumber.from(100).mul(uint)]),
+      contractTestToken.interface.encodeFunctionData('transfer', [accounts[8].address, BigNumber.from(100).mul(unit)]),
     );
     await timeTravel(120);
     printAllEvents(
@@ -219,7 +270,7 @@ describe('MultiSignatureV1', function () {
           tx,
         ),
     );
-    expect((await contractTestToken.balanceOf(accounts[8].address)).div(uint)).to.eq(100);
+    expect((await contractTestToken.balanceOf(accounts[8].address)).div(unit)).to.eq(100);
   });
 
   it('Creator able to perform quick transfer native token', async () => {

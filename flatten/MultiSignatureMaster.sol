@@ -558,8 +558,8 @@ interface IMultiSignature {
   function init(
     address[] memory users_,
     uint256[] memory roles_,
-    int256 threshold_,
-    int256 thresholdDrag_
+    uint256 threshold_,
+    uint256 thresholdDrag_
   ) external returns (bool);
 }
 
@@ -595,7 +595,12 @@ contract MultiSignatureMaster is Permissioned {
   uint256 private _walletFee;
 
   // Create new wallet
-  event CreateNewWallet(address indexed creator, uint256 indexed salt, int256 indexed threshold, int256 thresholdDrag);
+  event CreateNewWallet(
+    address indexed creator,
+    uint256 indexed salt,
+    uint256 indexed threshold,
+    uint256 thresholdDrag
+  );
 
   // Upgrade implementation
   event UpgradeImplementation(address indexed oldImplementation, address indexed upgradeImplementation);
@@ -656,8 +661,8 @@ contract MultiSignatureMaster is Permissioned {
     uint96 salt,
     address[] memory users_,
     uint256[] memory roles_,
-    int256 threshold_,
-    int256 thresholdDrag_
+    uint256 threshold_,
+    uint256 thresholdDrag_
   ) external payable requireFee returns (address) {
     address newWallet = _implementation.cloneDeterministic(_getUniqueSalt(msg.sender, salt));
     emit CreateNewWallet(msg.sender, salt, threshold_, thresholdDrag_);
