@@ -1,7 +1,7 @@
 // Dependency file: @openzeppelin/contracts/utils/Address.sol
 
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
+// OpenZeppelin Contracts (last updated v4.8.0) (utils/Address.sol)
 
 // pragma solidity ^0.8.1;
 
@@ -85,7 +85,7 @@ library Address {
      * _Available since v3.1._
      */
     function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionCall(target, data, "Address: low-level call failed");
+        return functionCallWithValue(target, data, 0, "Address: low-level call failed");
     }
 
     /**
@@ -134,10 +134,8 @@ library Address {
         string memory errorMessage
     ) internal returns (bytes memory) {
         require(address(this).balance >= value, "Address: insufficient balance for call");
-        require(isContract(target), "Address: call to non-contract");
-
         (bool success, bytes memory returndata) = target.call{value: value}(data);
-        return verifyCallResult(success, returndata, errorMessage);
+        return verifyCallResultFromTarget(target, success, returndata, errorMessage);
     }
 
     /**
@@ -161,10 +159,8 @@ library Address {
         bytes memory data,
         string memory errorMessage
     ) internal view returns (bytes memory) {
-        require(isContract(target), "Address: static call to non-contract");
-
         (bool success, bytes memory returndata) = target.staticcall(data);
-        return verifyCallResult(success, returndata, errorMessage);
+        return verifyCallResultFromTarget(target, success, returndata, errorMessage);
     }
 
     /**
@@ -188,15 +184,37 @@ library Address {
         bytes memory data,
         string memory errorMessage
     ) internal returns (bytes memory) {
-        require(isContract(target), "Address: delegate call to non-contract");
-
         (bool success, bytes memory returndata) = target.delegatecall(data);
-        return verifyCallResult(success, returndata, errorMessage);
+        return verifyCallResultFromTarget(target, success, returndata, errorMessage);
     }
 
     /**
-     * @dev Tool to verifies that a low level call was successful, and revert if it wasn't, either by bubbling the
-     * revert reason using the provided one.
+     * @dev Tool to verify that a low level call to smart-contract was successful, and revert (either by bubbling
+     * the revert reason or using the provided one) in case of unsuccessful call or if target was not a contract.
+     *
+     * _Available since v4.8._
+     */
+    function verifyCallResultFromTarget(
+        address target,
+        bool success,
+        bytes memory returndata,
+        string memory errorMessage
+    ) internal view returns (bytes memory) {
+        if (success) {
+            if (returndata.length == 0) {
+                // only check isContract if the call was successful and the return data is empty
+                // otherwise we already know that it was a contract
+                require(isContract(target), "Address: call to non-contract");
+            }
+            return returndata;
+        } else {
+            _revert(returndata, errorMessage);
+        }
+    }
+
+    /**
+     * @dev Tool to verify that a low level call was successful, and revert if it wasn't, either by bubbling the
+     * revert reason or using the provided one.
      *
      * _Available since v4.3._
      */
@@ -208,17 +226,21 @@ library Address {
         if (success) {
             return returndata;
         } else {
-            // Look for revert reason and bubble it up if present
-            if (returndata.length > 0) {
-                // The easiest way to bubble the revert reason is using memory via assembly
-                /// @solidity memory-safe-assembly
-                assembly {
-                    let returndata_size := mload(returndata)
-                    revert(add(32, returndata), returndata_size)
-                }
-            } else {
-                revert(errorMessage);
+            _revert(returndata, errorMessage);
+        }
+    }
+
+    function _revert(bytes memory returndata, string memory errorMessage) private pure {
+        // Look for revert reason and bubble it up if present
+        if (returndata.length > 0) {
+            // The easiest way to bubble the revert reason is using memory via assembly
+            /// @solidity memory-safe-assembly
+            assembly {
+                let returndata_size := mload(returndata)
+                revert(add(32, returndata), returndata_size)
             }
+        } else {
+            revert(errorMessage);
         }
     }
 }
@@ -539,6 +561,9 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   // View permission only
   uint256 private constant PERMISSION_OBSERVER = 4294967296;
 
+  // Chain Id
+  uint256 private _chainId;
+
   // Create a new proposal
   event NewProposal(address creator, uint256 indexed proposalId, uint256 indexed expired);
 
@@ -564,6 +589,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
 
   // Init method which can be called once
   function init(
+    uint256 chainId_,
     address[] memory users_,
     uint256[] memory roles_,
     uint256 threshold_,
@@ -579,6 +605,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
       }
     }
     // These values can be set once
+    _chainId = chainId_;
     _threshold = threshold_;
     _thresholdDrag = thresholdDrag_;
     _totalSigner = totalSinger;
@@ -600,11 +627,10 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
    * Creator section
    ********************************************************/
   // Transfer with signed proofs instead of on-chain voting
-  function quickTransfer(bytes[] memory signatures, bytes memory txData)
-    external
-    onlyAllow(PERMISSION_CREATE)
-    returns (bool)
-  {
+  function quickTransfer(
+    bytes[] memory signatures,
+    bytes memory txData
+  ) external onlyAllow(PERMISSION_CREATE) returns (bool) {
     uint256 totalSigned = 0;
     address[] memory signedAddresses = new address[](signatures.length);
     for (uint256 i = 0; i < signatures.length; i += 1) {
@@ -620,11 +646,14 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
     address target = txData.readAddress(32);
     uint256 value = txData.readUint256(52);
     bytes memory data = txData.readBytes(84, txData.length - 84);
+    //  ChainId ++ votingDeadline ++ Nonce
+    uint256 chainId = (packagedNonce >> 192);
+    uint256 votingDeadline = (packagedNonce >> 128) & 0xffffffffffffffff;
     uint256 nonce = packagedNonce & 0xffffffffffffffffffffffffffffffff;
-    uint256 votingTime = packagedNonce >> 128;
-    require(nonce - _nonce == 1, 'S: Invalid nonce value');
-    require(votingTime > block.timestamp && votingTime < block.timestamp + 3 days, 'S: Proof expired');
-    _nonce = nonce;
+    require(chainId == _chainId, 'S: Invalid chain Id');
+    require(nonce == _nonce, 'S: Invalid nonce value');
+    require(votingDeadline > block.timestamp, 'S: Proof expired');
+    _nonce = nonce + 1;
     if (target.isContract()) {
       target.functionCallWithValue(data, value);
     } else {
@@ -730,11 +759,13 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
    ********************************************************/
 
   function getPackedTransaction(
+    uint256 chainId,
+    uint256 timeout,
     address target,
     uint256 value,
     bytes memory data
   ) external view returns (bytes memory) {
-    return abi.encodePacked(uint128(block.timestamp + 1 hours), uint128(_nonce + 1), target, value, data);
+    return abi.encodePacked(uint64(chainId), uint64(block.timestamp + timeout), uint128(_nonce), target, value, data);
   }
 
   function getTotalProposal() external view returns (uint256) {
@@ -750,7 +781,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   }
 
   function getNextValidNonce() external view returns (uint256) {
-    return _nonce + 1;
+    return _nonce;
   }
 
   function getTotalSigner() external view returns (uint256) {

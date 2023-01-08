@@ -59,9 +59,12 @@ let deployerSigner: SignerWithAddress,
   admin1: SignerWithAddress,
   admin2: SignerWithAddress,
   admin3: SignerWithAddress;
+let chainId: number;
 
 describe('MultiSignatureV1', function () {
   it('MultiSignature must be deployed correctly', async () => {
+    const network = await hre.ethers.provider.getNetwork();
+    chainId = network.chainId;
     accounts = await hre.ethers.getSigners();
     [deployerSigner, creator, voter, executor, viewer, admin1, admin2, admin3] = accounts;
     const deployer: Deployer = Deployer.getInstance(hre);
@@ -73,6 +76,7 @@ describe('MultiSignatureV1', function () {
 
     printAllEvents(
       await contractMultiSig.init(
+        chainId,
         [creator, voter, executor, viewer, admin1, admin2, admin3].map((e) => e.address),
         [ROLE_CREATOR, ROLE_VOTER, ROLE_EXECUTOR, ROLE_VIEWER, ROLE_ADMIN, ROLE_ADMIN, ROLE_ADMIN],
         2,
@@ -89,6 +93,7 @@ describe('MultiSignatureV1', function () {
       await deployer.contractDeploy(
         'test/MultiSignatureMaster',
         [],
+        chainId,
         [deployerSigner.address, deployerSigner.address],
         [1, 2],
         contractMultiSig.address,
@@ -117,7 +122,13 @@ describe('MultiSignatureV1', function () {
       value: BigNumber.from(5).mul(unit),
     });
     const beforeValue = await admin1.getBalance();
-    const tx = await contractMultiSig.getPackedTransaction(admin1.address, BigNumber.from(1).mul(unit), '0x');
+    const tx = await contractMultiSig.getPackedTransaction(
+      chainId,
+      24 * 60 * 60,
+      admin1.address,
+      BigNumber.from(1).mul(unit),
+      '0x',
+    );
     printAllEvents(
       await cloneMultiSig
         .connect(admin2)
@@ -134,6 +145,7 @@ describe('MultiSignatureV1', function () {
     expect(
       await shouldFailed(async () =>
         contractMultiSig.connect(deployerSigner).init(
+          chainId,
           [creator, voter, executor, viewer, admin1, admin2, admin3].map((e) => e.address),
           [ROLE_CREATOR, ROLE_VOTER, ROLE_EXECUTOR, ROLE_VIEWER, ROLE_ADMIN, ROLE_ADMIN, ROLE_ADMIN],
           2,
@@ -253,6 +265,8 @@ describe('MultiSignatureV1', function () {
 
   it('Creator able to perform quick transfer', async () => {
     const tx = await contractMultiSig.getPackedTransaction(
+      chainId,
+      24 * 60 * 60,
       contractTestToken.address,
       0,
       contractTestToken.interface.encodeFunctionData('transfer', [accounts[8].address, BigNumber.from(100).mul(unit)]),
@@ -280,7 +294,7 @@ describe('MultiSignatureV1', function () {
       value: 100,
     });
     expect((await hre.ethers.provider.getBalance(contractMultiSig.address)).toNumber()).to.eq(100);
-    const tx = await contractMultiSig.getPackedTransaction(accounts[7].address, 100, '0x');
+    const tx = await contractMultiSig.getPackedTransaction(chainId, 24 * 60 * 60, accounts[7].address, 100, '0x');
     printAllEvents(
       await contractMultiSig
         .connect(creator)

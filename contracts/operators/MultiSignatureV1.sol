@@ -33,6 +33,9 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   // View permission only
   uint256 private constant PERMISSION_OBSERVER = 4294967296;
 
+  // Chain Id
+  uint256 private _chainId;
+
   // Create a new proposal
   event NewProposal(address creator, uint256 indexed proposalId, uint256 indexed expired);
 
@@ -58,6 +61,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
 
   // Init method which can be called once
   function init(
+    uint256 chainId_,
     address[] memory users_,
     uint256[] memory roles_,
     uint256 threshold_,
@@ -73,6 +77,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
       }
     }
     // These values can be set once
+    _chainId = chainId_;
     _threshold = threshold_;
     _thresholdDrag = thresholdDrag_;
     _totalSigner = totalSinger;
@@ -94,11 +99,10 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
    * Creator section
    ********************************************************/
   // Transfer with signed proofs instead of on-chain voting
-  function quickTransfer(bytes[] memory signatures, bytes memory txData)
-    external
-    onlyAllow(PERMISSION_CREATE)
-    returns (bool)
-  {
+  function quickTransfer(
+    bytes[] memory signatures,
+    bytes memory txData
+  ) external onlyAllow(PERMISSION_CREATE) returns (bool) {
     uint256 totalSigned = 0;
     address[] memory signedAddresses = new address[](signatures.length);
     for (uint256 i = 0; i < signatures.length; i += 1) {
@@ -114,11 +118,14 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
     address target = txData.readAddress(32);
     uint256 value = txData.readUint256(52);
     bytes memory data = txData.readBytes(84, txData.length - 84);
+    //  ChainId ++ votingDeadline ++ Nonce
+    uint256 chainId = (packagedNonce >> 192);
+    uint256 votingDeadline = (packagedNonce >> 128) & 0xffffffffffffffff;
     uint256 nonce = packagedNonce & 0xffffffffffffffffffffffffffffffff;
-    uint256 votingTime = packagedNonce >> 128;
-    require(nonce - _nonce == 1, 'S: Invalid nonce value');
-    require(votingTime > block.timestamp && votingTime < block.timestamp + 3 days, 'S: Proof expired');
-    _nonce = nonce;
+    require(chainId == _chainId, 'S: Invalid chain Id');
+    require(nonce == _nonce, 'S: Invalid nonce value');
+    require(votingDeadline > block.timestamp, 'S: Proof expired');
+    _nonce = nonce + 1;
     if (target.isContract()) {
       target.functionCallWithValue(data, value);
     } else {
@@ -224,11 +231,13 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
    ********************************************************/
 
   function getPackedTransaction(
+    uint256 chainId,
+    uint256 timeout,
     address target,
     uint256 value,
     bytes memory data
   ) external view returns (bytes memory) {
-    return abi.encodePacked(uint128(block.timestamp + 1 hours), uint128(_nonce + 1), target, value, data);
+    return abi.encodePacked(uint64(chainId), uint64(block.timestamp + timeout), uint128(_nonce), target, value, data);
   }
 
   function getTotalProposal() external view returns (uint256) {
@@ -244,7 +253,7 @@ contract MultiSignatureV1 is Permissioned, MultiSignatureStorage {
   }
 
   function getNextValidNonce() external view returns (uint256) {
-    return _nonce + 1;
+    return _nonce;
   }
 
   function getTotalSigner() external view returns (uint256) {

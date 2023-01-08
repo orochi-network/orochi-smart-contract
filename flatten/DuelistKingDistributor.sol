@@ -303,11 +303,7 @@ interface INFT {
     string memory uri_
   ) external returns (bool);
 
-  function safeTransfer(
-    address from,
-    address to,
-    uint256 tokenId
-  ) external returns (bool);
+  function safeTransfer(address from, address to, uint256 tokenId) external returns (bool);
 
   function batchMint(address to, uint256[] memory tokenIds) external returns (bool);
 

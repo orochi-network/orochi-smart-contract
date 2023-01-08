@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 interface IMultiSignature {
   function init(
+    uint256 chainId_,
     address[] memory users_,
     uint256[] memory roles_,
     uint256 threshold_,
