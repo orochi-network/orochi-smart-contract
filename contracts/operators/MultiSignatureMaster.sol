@@ -18,7 +18,7 @@ contract MultiSignatureMaster is Permissioned {
   // Allow master to clone other multi signature contract
   using Clones for address;
 
-  // Permissionw
+  // Permission
   uint256 internal constant PERMISSION_TRANSFER = 1;
   uint256 internal constant PERMISSION_OPERATOR = 2;
 
@@ -27,6 +27,9 @@ contract MultiSignatureMaster is Permissioned {
 
   // Price in native token
   uint256 private _walletFee;
+
+  // Chain id
+  uint256 private _chainId;
 
   // Create new wallet
   event CreateNewWallet(
@@ -50,6 +53,7 @@ contract MultiSignatureMaster is Permissioned {
 
   // Pass parameters to parent contract
   constructor(
+    uint256 chainId_,
     address[] memory users_,
     uint256[] memory roles_,
     address implementation_,
@@ -57,6 +61,8 @@ contract MultiSignatureMaster is Permissioned {
   ) {
     _implementation = implementation_;
     _walletFee = fee_;
+    // We use input chainId instead of EIP-1344
+    _chainId = chainId_;
     _init(users_, roles_);
     emit UpgradeImplementation(address(0), implementation_);
   }
@@ -101,7 +107,7 @@ contract MultiSignatureMaster is Permissioned {
     address newWallet = _implementation.cloneDeterministic(_getUniqueSalt(msg.sender, salt));
     emit CreateNewWallet(msg.sender, salt, threshold_, thresholdDrag_);
     require(
-      IMultiSignature(newWallet).init(users_, roles_, threshold_, thresholdDrag_),
+      IMultiSignature(newWallet).init(_chainId, users_, roles_, threshold_, thresholdDrag_),
       'M: Can not init multi-sig wallet'
     );
     return newWallet;

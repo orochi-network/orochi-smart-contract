@@ -54,10 +54,26 @@ const config: HardhatUserConfig = {
         path: "m/44'/60'/0'/0",
       },
     },
+    mumbai: {
+      url: env.DUELIST_KING_RPC,
+      chainId: 80001,
+      accounts: {
+        mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
+        path: "m/44'/60'/0'/0",
+      },
+    },
+    bnbtest: {
+      url: env.DUELIST_KING_RPC,
+      chainId: 97,
+      accounts: {
+        mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
+        path: "m/44'/60'/0'/0",
+      },
+    },
     testnet: {
       url: env.DUELIST_KING_RPC,
       // Fantom testnet
-      chainId: 0xfa2,
+      chainId: 4002,
       accounts: {
         mnemonic: env.DUELIST_KING_DEPLOY_MNEMONIC,
         path: "m/44'/60'/0'/0",

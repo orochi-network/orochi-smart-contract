@@ -1,6 +1,6 @@
 // Root file: contracts/interfaces/INFT.sol
 
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.4 <0.9.0;
 
 interface INFT {
@@ -12,11 +12,7 @@ interface INFT {
     string memory uri_
   ) external returns (bool);
 
-  function safeTransfer(
-    address from,
-    address to,
-    uint256 tokenId
-  ) external returns (bool);
+  function safeTransfer(address from, address to, uint256 tokenId) external returns (bool);
 
   function batchMint(address to, uint256[] memory tokenIds) external returns (bool);
 
